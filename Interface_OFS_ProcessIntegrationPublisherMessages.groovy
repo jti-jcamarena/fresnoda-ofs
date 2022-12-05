@@ -661,6 +661,7 @@ public class IntegrationPublisherInterface {
                 String sChgDegree = ipChargeHistoryCollection[ipChargeHistoryCollection.size() -1].Statute.Degree?.text()?.toUpperCase();
                 String sChgSectionNumber = ipChargeHistoryCollection[ipChargeHistoryCollection.size() -1].Statute.StatuteCode.@Word.toString();
 				String sChgNbr = oChgObj?.ChargeTrackNumber?.text()?.replaceAll("^0*", ""); // Add charge# and remove leading 0's
+                String sChgStatuteDescription = ipChargeHistoryCollection[ipChargeHistoryCollection.size() -1].Statute.StatuteDescription?.text()?.toUpperCase();
               logger("663: sChgDegree: ${sChgDegree}; sChgSectionNumber: ${sChgSectionNumber}; sChgNbr: ${sChgNbr}; sCaseDefPartyId: ${sCaseDefPartyId}");
 				// Test for valid charge number
 				if ( !StringUtil.isNullOrEmpty(sChgNbr) ) {   // valid IP charge#
@@ -708,7 +709,7 @@ public class IntegrationPublisherInterface {
                     }       
 					// Add basic charge fields
 
-                  	//cCharge.description = cCharge.statute == null ? "${sChgDegree.charAt(0)} ${sChgSectionNumber}".toString() : null; 
+                    cCharge.description = "${sChgDegree} ${sChgSectionNumber}".toString();
 					cCharge.chargeDate = convDateStrToDate((String) oChgObj?.ChargeOffenseDate?.text(), "MM/dd/yyyy");
 					cCharge.chargeNumber = sChgNbr.replaceAll('^0*', '');
 					cCharge.status = "ACT";
@@ -785,8 +786,8 @@ public class IntegrationPublisherInterface {
 						 * StatuteDescription to the .memo field within the Ce_chargeDisposition entity that gets
 						 * added elsewhere in this mapping.
 						 */
-                      logger("785: choice:${sChgSectionNumber}; odysseyDegree:${degreeCodeMatch}; inputStatuteChoiceList:${inputStatuteChoiceList}");
-						//if (bForceStatuteUpdate != null && bForceStatuteUpdate == true) {
+                      logger("789: choice:${sChgSectionNumber}; odysseyDegree:${degreeCodeMatch}; inputStatuteChoiceList:${inputStatuteChoiceList}");
+                      logger("790:inputStatute:${inputStatute};cCharge.statute${cCharge?.statute}");
                       if (inputStatute != cCharge.statute){
 							// Statute search criteria - ('=source',"PC",'=sectionNumber',"422",'=sectionName',"Criminal Threats")
 							//logger("Searching for published charge statute - [Src(${sStatuteCode}), Nbr(${sStatuteNumber}), Desc(${sStatuteDesc}), Category(${sStatuteDegree.charAt(0)})]");
@@ -801,7 +802,7 @@ public class IntegrationPublisherInterface {
                             ArrayList statuteChoiceList = DomainObject.find(Ce_StatuteLanguageChoice.class, "choice", sStatuteNumber, "odysseyDegree", degreeCode, "choiceType", "INBOUND");
                           Statute cSt = statuteChoiceList.find({choice -> choice != null && choice.statute != null})?.statute;
                           logger("785 cSt: ${cSt}; choice: ${sStatuteNumber}; odysseyDegree:${sStatuteDegree} ${degreeCode}");
-							if (cSt == null) { // no statute?
+							if (cSt == null || cSt.sectionNumber == sGenericStatuteSectionNbr) { // no statute?
 								logger("Statute not found, searching for generic sectionNbr($sGenericStatuteSectionNbr)");
 
 								// If failed to find xml statute, check for a Generic statute sectionNumber and use that
@@ -815,7 +816,8 @@ public class IntegrationPublisherInterface {
 									// Add memo to statute tracking list to be used w/ the dispo sentencing
                                   
 									lcChgDispStatuteList.add(new ChargeStatuteObj(cCharge.chargeNumber, sStatuteMemo));
-                                    cCharge.description = "${sChgDegree.charAt(0)} ${sChgSectionNumber}".toString();
+                                    cCharge.description = "${sChgDegree} ${sChgSectionNumber}".toString();
+                                  cCharge.memo = "${sChgStatuteDescription}".toString();
                           			cCharge.saveOrUpdate();
 								}
 
