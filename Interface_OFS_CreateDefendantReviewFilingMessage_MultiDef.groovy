@@ -1448,7 +1448,7 @@ if( sCode != null ) {
         xFile.append("<nc:BinaryBase64Object></nc:BinaryBase64Object>");
 		xFile.append("<nc:BinaryDescriptionText>${xmlStrUtil(sDocExactFilename)}</nc:BinaryDescriptionText>");
       String codeBinaryFormatStandardName = com.sustain.rule.model.RuleDef.exec("INTERFACE_OFS_UPDATE_FILING_CODES_LOCAL_XML", null, ["lookuplist": "ODYSSEY_BINARY_FORMAT_STANDARD", "casecategory": "8", "name": "", "filingcodeid": filingCodeRegisterAction] ).getValue("code");
-      codeBinaryFormatStandardName = codeBinaryFormatStandardName == null || codeBinaryFormatStandardName.isEmpty() ? xmlStrUtil(getLookupListCodeAttribute("ODYSSEY_BINARY_FORMAT_STANDARD", "CRIMINALDOCUMENT", OFS_ATTRIBUTE_TYPE_, tylerCourtLocation, tylerCaseCategory, "filingCode", "US")) : codeBinaryFormatStandardName;
+      //codeBinaryFormatStandardName = codeBinaryFormatStandardName == null || codeBinaryFormatStandardName.isEmpty() ? xmlStrUtil(getLookupListCodeAttribute("ODYSSEY_BINARY_FORMAT_STANDARD", "CRIMINALDOCUMENT", OFS_ATTRIBUTE_TYPE_, tylerCourtLocation, tylerCaseCategory, "filingCode", "US")) : codeBinaryFormatStandardName;
         xFile.append("<nc:BinaryFormatStandardName>${codeBinaryFormatStandardName}</nc:BinaryFormatStandardName>");
 		xFile.append("<nc:BinaryLocationURI>${xmlStrUtil(sDocExactFilename)}</nc:BinaryLocationURI>");
 		xFile.append("<nc:BinaryCategoryText>${xmlStrUtil(sDocTypeId)}</nc:BinaryCategoryText>");
