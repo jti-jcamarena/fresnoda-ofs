@@ -402,7 +402,8 @@ public class CreateDefPtyReviewFilingInterface {
 			// Set tracking parameters for esl service
 			
             OtherCaseNumber cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
-          logger("cOldCaseFiling:${cOldCaseFiling}");
+          cOldCaseFiling = cOldCaseFiling == null || cOldCaseFiling.number == null ? cCase.collect("otherCaseNumbers[type=='CRT' && number != null]").orderBy("lastUpdated").last() : cOldCaseFiling;
+          logger("406:cOldCaseFiling:${cOldCaseFiling}");
           eProsCfg_.sCaseNumber_ = cOldCaseFiling?.number;
           logger("435:eProsCfg_.sCaseNumber_:${eProsCfg_.sCaseNumber_};cOldCaseFiling:${cOldCaseFiling?.number}");
             eProsCfg_.sCaseCourtLocation_ =  tylerCourtLocation;
@@ -431,7 +432,7 @@ public class CreateDefPtyReviewFilingInterface {
 					+ 'xmlns:criminal="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:CriminalCase-4.0">');
 
 			// Get/Report Case cross reference number
-          if(cRule_._submitCaseCrossReference == true){
+          if(cRule_._submitCaseCrossReference == true && crossReferenceDistrictAttorney != null && cOldCaseFiling == null){
 			OFS_CaseXml.append('<nc:DocumentIdentification>');
 			OFS_CaseXml.append("<nc:IdentificationID>${cCase.caseNumber}</nc:IdentificationID>");
 			OFS_CaseXml.append('<nc:IdentificationCategoryText>CaseCrossReferenceNumber</nc:IdentificationCategoryText>');
@@ -444,7 +445,7 @@ public class CreateDefPtyReviewFilingInterface {
 
 			// Get/Report SO (sheriff officers) cross reference number
 			Identification cSONbr = cParty_.collect("person.identifications[identificationType=='CII' and (effectiveTo == null or #p1 < effectiveTo) and (effectiveFrom == null or #p2 > effectiveFrom) and (status == null or status == 'VAL')]", new Date(), new Date()).last();
-			if (cSONbr != null) {
+			if (cSONbr != null && cSONbr?.identificationNumber != null && cRule_._submitCaseCrossReference == true && cOldCaseFiling == null) {
 				logger("SO CII reference = ${cSONbr?.identificationNumber}")
 				OFS_CaseXml.append('<nc:DocumentIdentification>');
 				OFS_CaseXml.append("<nc:IdentificationID>${xmlStrUtil(cSONbr?.identificationNumber)}</nc:IdentificationID>");
@@ -460,7 +461,7 @@ public class CreateDefPtyReviewFilingInterface {
 			// Get/Report Arrest Booking Number cross reference
 			Arrest cArrestBookingNbr = cParty_.collect("arrests[bookingNumber!=null]").last();
 			// use most current w/ valid bookingNbr
-			if (cArrestBookingNbr != null) {
+			if (cArrestBookingNbr != null && cArrestBookingNbr?.bookingNumber != null && cRule_._submitCaseCrossReference == true && cOldCaseFiling == null) {
 				logger("Booking number reference = ${cArrestBookingNbr?.bookingNumber}")
 				OFS_CaseXml.append('<nc:DocumentIdentification>');
 				OFS_CaseXml.append("<nc:IdentificationID>${xmlStrUtil(cArrestBookingNbr?.bookingNumber)}</nc:IdentificationID>");
@@ -505,8 +506,9 @@ public class CreateDefPtyReviewFilingInterface {
              * CaseCourt is fresno:cr and use that as the value for <nc:CaseTrackingID> in the message, finalize it,
              * save it to disk and then send it to OFS system.
              */
-            cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
-          logger("cOldCaseFiling:${cOldCaseFiling}");
+          //cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
+          //cOldCaseFiling = cOldCaseFiling == null || cOldCaseFiling.number == null ? cCase.collect("otherCaseNumbers[type=='CRT' && number != null]").orderBy("lastUpdated").last() : cOldCaseFiling;
+          logger("511:cOldCaseFiling:${cOldCaseFiling}");
             if (cOldCaseFiling != null) { // valid court#?
                 logger("Court CaseDocketNbr(${cOldCaseFiling?.number}) found for subsequent filing");
 
@@ -535,8 +537,9 @@ public class CreateDefPtyReviewFilingInterface {
           String caseCourtNumber = !cCase.collect("otherCaseNumbers[type=='CRT']").isEmpty() ? cCase.collect("otherCaseNumbers[type=='CRT']")?.orderBy("lastUpdated")?.find({thisNumber -> thisNumber != null && thisNumber.number !=null})?.number : "";
           
 			OFS_CaseXml.append('<tyler:CaseAugmentation xsi:schemaLocation="urn:tyler:ecf:extensions:Common ..\\..\\..\\Schema\\Substitution\\Tyler.xsd">');
-          cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
-          logger("cOldCaseFiling:${cOldCaseFiling}");
+          //cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
+          //cOldCaseFiling = cOldCaseFiling == null || cOldCaseFiling.number == null ? cCase.collect("otherCaseNumbers[type=='CRT' && number != null]").orderBy("lastUpdated").last() : cOldCaseFiling;
+          logger("542:cOldCaseFiling:${cOldCaseFiling}");
             if(cOldCaseFiling == null){
 			// Add case assignment role for attorney
 			String sAttorneyRef = "ATTY";
@@ -724,6 +727,7 @@ public class CreateDefPtyReviewFilingInterface {
 			OFS_CaseXml.append("<ecf:CaseParticipantRoleCode>${xmlStrUtil(getLookupListCodeAttribute("ODYSSEY_CASE_PARTICIPANT_ROLE", cParty_.partyType, OFS_ATTRIBUTE_TYPE_, tylerCourtLocation, tylerCaseCategory, "filingCode", "US"))}</ecf:CaseParticipantRoleCode>");
 			OFS_CaseXml.append('</ecf:CaseParticipant>');
 			OFS_CaseXml.append("<tyler:CaseTypeText>${xmlStrUtil(getLookupListCodeAttribute("CASE_TYPE", cCase.caseType, OFS_ATTRIBUTE_TYPE_, tylerCourtLocation, tylerCaseCategory, "filingCode", "US"))}</tyler:CaseTypeText>");
+            //OFS_CaseXml.append("<tyler:CaseTypeText>30565</tyler:CaseTypeText>");
 			OFS_CaseXml.append('<tyler:AttachServiceContactIndicator>false</tyler:AttachServiceContactIndicator>');
             }
 			OFS_CaseXml.append('</tyler:CaseAugmentation>');
@@ -792,8 +796,9 @@ public class CreateDefPtyReviewFilingInterface {
 			OFS_CaseXml.append('</criminal:CaseArrest>');
         }
 		//String caseCourtNumber = !cCase.collect("otherCaseNumbers[type=='CRT']").isEmpty() ? cCase.collect("otherCaseNumbers[type=='CRT']")?.orderBy("lastUpdated")?.find({thisNumber -> thisNumber != null && thisNumber.number !=null})?.number : "";
-          cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
-          logger("cOldCaseFiling:${cOldCaseFiling}");
+          //cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
+          //cOldCaseFiling = cOldCaseFiling == null || cOldCaseFiling.number == null ? cCase.collect("otherCaseNumbers[type=='CRT' && number != null]").orderBy("lastUpdated").last() : cOldCaseFiling;
+          logger("801:cOldCaseFiling:${cOldCaseFiling}");
           if (cOldCaseFiling == null){
 			if (cParty_.charges != null) {    // charges?
 				logger("Adding ${cParty_.charges.size()} charge(s)");
@@ -958,19 +963,20 @@ public class CreateDefPtyReviewFilingInterface {
 			OFS_CaseXml.append('<ecf:DocumentMetadata>');
           
           LookupAttribute lookupAttribute = DomainObject.find(LookupAttribute.class, "lookupItem.lookupList.name", "PARTY_SUBMIT_TYPE", "attributeType", "IOFS", "lookupItem.code", cParty_?.cf_partySubmit).find({it -> it != null});
-                             
+          logger("965:filingCodeName: ${lookupAttribute?.name}");               
           String xmlFilingCode = com.sustain.rule.model.RuleDef.exec("INTERFACE_OFS_UPDATE_FILING_CODES_LOCAL_XML", null, ["lookuplist": "PARTY_SUBMIT_TYPE", "casecategory": "8", "name": lookupAttribute?.name, "filingcodeid": ""] ).getValue("code");
 
 String leadDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERFACE_OFS_UPDATE_FILING_CODES_LOCAL_XML", null, ["lookuplist": "PARTY_SUBMIT_TYPE", "casecategory": "8", "name": cSubDoc.docDef.number4, "filingcodeid": ""] ).getValue("code");
           logger("986:xmlFilingCode:${xmlFilingCode};leadDocRegisterAction:${leadDocRegisterAction}");
           String primaryFilingCode = "";
-          cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
-          logger("cOldCaseFiling:${cOldCaseFiling}");
+          //cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
+          //cOldCaseFiling = cOldCaseFiling == null || cOldCaseFiling.number == null ? cCase.collect("otherCaseNumbers[type=='CRT' && number != null]").orderBy("lastUpdated").last() : cOldCaseFiling;
+          logger("974:cOldCaseFiling:${cOldCaseFiling}");
           if (cOldCaseFiling == null || leadDocRegisterAction == null || leadDocRegisterAction?.isEmpty()){
-            OFS_CaseXml.append("<j:RegisterActionDescriptionText>${xmlFilingCode}</j:RegisterActionDescriptionText>");
+            OFS_CaseXml.append("<j:RegisterActionDescriptionText>${xmlFilingCode}</j:RegisterActionDescriptionText>"); logger("RegisterActionDescriptionText:A");
             primaryFilingCode = xmlFilingCode;
           } else {
-            OFS_CaseXml.append("<j:RegisterActionDescriptionText>${leadDocRegisterAction}</j:RegisterActionDescriptionText>");
+            OFS_CaseXml.append("<j:RegisterActionDescriptionText>${leadDocRegisterAction}</j:RegisterActionDescriptionText>"); logger("RegisterActionDescriptionText:B");
             primaryFilingCode = leadDocRegisterAction;
           }
                     
