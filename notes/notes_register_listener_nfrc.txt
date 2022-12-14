@@ -1,0 +1,5 @@
+Register Service Listener:
+
+netsh http add urlacl url=https://+:443/ESL_OdysseyRfService/ user=jcamarena
+netsh http add urlacl url=https://+:443/public-portal/ESL_OdysseyRfService/ user=jcamarena
+
