@@ -401,9 +401,26 @@ public class CreateDefPtyReviewFilingInterface {
 
 			// Set tracking parameters for esl service
 			
-            OtherCaseNumber cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
-          cOldCaseFiling = cOldCaseFiling == null || cOldCaseFiling.number == null ? cCase.collect("otherCaseNumbers[type=='CRT' && number != null]").orderBy("lastUpdated").last() : cOldCaseFiling;
-          logger("406:cOldCaseFiling:${cOldCaseFiling}");
+          OtherCaseNumber cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && number != null && !number.isEmpty() && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
+          logger("405:cOldCaseFiling:${cOldCaseFiling}; ${cOldCaseFiling?.number}; cParty_.firstName:${cParty_.firstName}; cParty_.lastName:${cParty_.lastName}; memo: ${cOldCaseFiling?.memo}");
+          
+          OtherCaseNumber cOldCaseFilingForUnmatchedParty = cCase.collect("otherCaseNumbers[type=='CRT' && number != null && !number.isEmpty() && memo != null && !memo.isEmpty()]").orderBy("lastUpdated").last();
+          logger("408:cOldCaseFilingForUnmatchedParty:${cOldCaseFilingForUnmatchedParty}; ${cOldCaseFilingForUnmatchedParty?.number}");
+          
+          OtherCaseNumber cOldCaseFilingForUnmatchedPartyMemoEmpty = cCase.collect("otherCaseNumbers[type=='CRT' && number != null && !number.isEmpty() && (memo == null || memo.isEmpty())]").orderBy("lastUpdated").last();
+          logger("411:cOldCaseFilingForUnmatchedPartyMemoEmpty:${cOldCaseFilingForUnmatchedPartyMemoEmpty}; ${cOldCaseFilingForUnmatchedPartyMemoEmpty?.number}");
+          
+          if (cOldCaseFiling == null && cOldCaseFilingForUnmatchedPartyMemoEmpty != null && cOldCaseFilingForUnmatchedPartyMemoEmpty.number != null){
+            cOldCaseFiling = cOldCaseFilingForUnmatchedPartyMemoEmpty;
+          }
+          logger("416:cOldCaseFiling:${cOldCaseFiling}; ${cOldCaseFiling?.number}");
+          
+          if (cOldCaseFiling == null && cOldCaseFilingForUnmatchedPartyMemoEmpty != null && cOldCaseFilingForUnmatchedPartyMemoEmpty.number != null && cOldCaseFilingForUnmatchedParty != null && cOldCaseFilingForUnmatchedParty.number != null){
+            cOldCaseFiling = cOldCaseFilingForUnmatchedParty;
+          }
+          logger("421:cOldCaseFiling:${cOldCaseFiling}; ${cOldCaseFiling?.number}");
+
+          
           eProsCfg_.sCaseNumber_ = cOldCaseFiling?.number;
           logger("435:eProsCfg_.sCaseNumber_:${eProsCfg_.sCaseNumber_};cOldCaseFiling:${cOldCaseFiling?.number}");
             eProsCfg_.sCaseCourtLocation_ =  tylerCourtLocation;
@@ -534,7 +551,6 @@ public class CreateDefPtyReviewFilingInterface {
             OFS_CaseXml.append('</j:CaseLineageCase>')
 
 			OFS_CaseXml.append('</j:CaseAugmentation>');
-          String caseCourtNumber = !cCase.collect("otherCaseNumbers[type=='CRT']").isEmpty() ? cCase.collect("otherCaseNumbers[type=='CRT']")?.orderBy("lastUpdated")?.find({thisNumber -> thisNumber != null && thisNumber.number !=null})?.number : "";
           
 			OFS_CaseXml.append('<tyler:CaseAugmentation xsi:schemaLocation="urn:tyler:ecf:extensions:Common ..\\..\\..\\Schema\\Substitution\\Tyler.xsd">');
           //cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
@@ -795,7 +811,7 @@ public class CreateDefPtyReviewFilingInterface {
 
 			OFS_CaseXml.append('</criminal:CaseArrest>');
         }
-		//String caseCourtNumber = !cCase.collect("otherCaseNumbers[type=='CRT']").isEmpty() ? cCase.collect("otherCaseNumbers[type=='CRT']")?.orderBy("lastUpdated")?.find({thisNumber -> thisNumber != null && thisNumber.number !=null})?.number : "";
+
           //cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
           //cOldCaseFiling = cOldCaseFiling == null || cOldCaseFiling.number == null ? cCase.collect("otherCaseNumbers[type=='CRT' && number != null]").orderBy("lastUpdated").last() : cOldCaseFiling;
           logger("801:cOldCaseFiling:${cOldCaseFiling}");
@@ -1106,7 +1122,7 @@ String connectingDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERF
 
 			// Add ePros configuration to the reviewFiling message
 			logger("Attaching eProsCfg tag");
-          //String caseCourtNumber = !cCase.collect("otherCaseNumbers[type=='CRT']").isEmpty() ? cCase.collect("otherCaseNumbers[type=='CRT']").orderBy("lastUpdated").last().number : "";
+
           CaseAssignment filingAttorney = cCase.collect("assignments[assignmentRole == 'ATTY' && status == 'CUR']").find({it -> it.person != null && it.person.lastName != null});
           filingAttorney = filingAttorney == null ? cCase.collect("assignments[assignmentRole == 'REV' && status == 'CUR']").find({it -> it.person != null && it.person.lastName != null}) : filingAttorney;
           filingAttorney = filingAttorney != null && filingAttorney.person != null && filingAttorney.person.lastName != null && !filingAttorney.person.collect("identifications[identificationType == 'BAR' && identificationNumber != null]").isEmpty() ? filingAttorney : null;
@@ -1115,7 +1131,8 @@ String connectingDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERF
           String attyFirstName = filingAttorney != null ? filingAttorney.person.firstName : "Anthony";
           String attyMiddleName = filingAttorney != null ? filingAttorney.person.middleName : "";
           logger("1141:cParty_:${cParty_}");
-          String otherCaseNumberMemo = cCase.collect("otherCaseNumbers[type == 'CRT' && memo != null && memo.contains(#p1)]", "${cParty_.fml}".toString()).find({thisOCN -> thisOCN != null})?.memo;
+          logger("1117:cOldCaseFiling :${cOldCaseFiling }");
+          String otherCaseNumberMemo = cOldCaseFiling?.memo;
           otherCaseNumberMemo = otherCaseNumberMemo == null ? "" : otherCaseNumberMemo;
             OFS_CaseXml.append( '<eProsCfg>');
           if (otherCaseNumberMemo != null && !otherCaseNumberMemo.isEmpty()){
