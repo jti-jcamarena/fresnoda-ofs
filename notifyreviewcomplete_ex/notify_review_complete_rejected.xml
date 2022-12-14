@@ -1,0 +1,632 @@
+<?xml version="1.0"?>
+-<NotifyFilingReviewCompleteRequestMessage xmlns="urn:oasis:names:tc:legalxml-courtfiling:wsdl:WebServicesProfile-Definitions-4.0">
+	-
+	<SendingMDELocationID xmlns="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:CommonTypes-4.0">
+
+		<IdentificationID xmlns="http://niem.gov/niem/niem-core/2.0">https://filingreviewmde.com</IdentificationID>
+
+	</SendingMDELocationID>
+
+	<SendingMDEProfileCode xmlns="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:CommonTypes-4.0">urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:WebServicesMessaging-2.0</SendingMDEProfileCode>
+	-
+	<ReviewFilingCallbackMessage xmlns="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:ReviewFilingCallbackMessage-4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:s="http://niem.gov/niem/structures/2.0" xmlns:ecf="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:CommonTypes-4.0" xmlns:nc="http://niem.gov/niem/niem-core/2.0" xmlns:j="http://niem.gov/niem/domains/jxdm/4.0" xmlns:tyler="urn:tyler:ecf:extensions:Common">
+		-
+		<nc:DocumentFiledDate>
+
+			<nc:DateTime>2022-12-13T17:20:01.0Z</nc:DateTime>
+
+		</nc:DocumentFiledDate>
+		-
+		<nc:DocumentIdentification>
+
+			<nc:IdentificationID>fd1bc58f-898a-41e2-ae80-ea85f7b5ae1d</nc:IdentificationID>
+
+			<nc:IdentificationCategoryText>FILINGID</nc:IdentificationCategoryText>
+
+		</nc:DocumentIdentification>
+		-
+		<nc:DocumentPostDate>
+
+			<nc:DateTime>2022-12-13T17:20:01.0Z</nc:DateTime>
+
+		</nc:DocumentPostDate>
+		-
+		<ecf:SendingMDELocationID>
+
+			<nc:IdentificationID>https://filingreviewmde.com</nc:IdentificationID>
+
+		</ecf:SendingMDELocationID>
+
+		<ecf:SendingMDEProfileCode>urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:WebServicesMessaging-2.0</ecf:SendingMDEProfileCode>
+		-
+		<criminal:CriminalCase xmlns:criminal="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:CriminalCase-4.0">
+
+			<nc:CaseTitleText>The People of the State of California vs. Jennifer TEST cASE Bourne</nc:CaseTitleText>
+
+			<nc:CaseCategoryText>8</nc:CaseCategoryText>
+
+			<nc:CaseTrackingID>3974618</nc:CaseTrackingID>
+
+			<nc:CaseDocketID>A1jc12132022</nc:CaseDocketID>
+			-
+			<j:CaseAugmentation>
+				-
+				<j:CaseCourt>
+					-
+					<nc:OrganizationIdentification>
+
+						<nc:IdentificationID>fresno:cr</nc:IdentificationID>
+
+					</nc:OrganizationIdentification>
+
+				</j:CaseCourt>
+				-
+				<j:CaseJudge>
+					-
+					<j:JudicialOfficialBarMembership>
+						-
+						<j:JudicialOfficialBarIdentification>
+
+							<nc:IdentificationID />
+
+						</j:JudicialOfficialBarIdentification>
+
+					</j:JudicialOfficialBarMembership>
+
+				</j:CaseJudge>
+				-
+				<j:CaseLineageCase>
+
+					<nc:CaseTrackingID>f1c25ddb-d62c-4eda-9804-76f08e986f54</nc:CaseTrackingID>
+
+				</j:CaseLineageCase>
+
+			</j:CaseAugmentation>
+			-
+			<tyler:CaseAugmentation>
+				-
+				<ecf:CaseParticipant>
+					-
+					<ecf:EntityPerson s:id="Party1">
+						-
+						<nc:PersonName>
+
+							<nc:PersonGivenName>Jennifer</nc:PersonGivenName>
+
+							<nc:PersonMiddleName>TEST cASE</nc:PersonMiddleName>
+
+							<nc:PersonSurName>Bourne</nc:PersonSurName>
+
+							<nc:PersonNameSuffixText />
+
+						</nc:PersonName>
+						-
+						<nc:PersonOtherIdentification>
+
+							<nc:IdentificationID>9254a7fe-257a-4234-a62f-16daa7e8be3f</nc:IdentificationID>
+
+							<nc:IdentificationCategoryText>CASEPARTYID</nc:IdentificationCategoryText>
+
+						</nc:PersonOtherIdentification>
+						-
+						<ecf:PersonAugmentation>
+							-
+							<nc:ContactInformation>
+								-
+								<nc:ContactTelephoneNumber>
+									-
+									<nc:FullTelephoneNumber>
+
+										<nc:TelephoneNumberFullID />
+
+									</nc:FullTelephoneNumber>
+
+								</nc:ContactTelephoneNumber>
+
+								<nc:ContactEmailID />
+								-
+								<nc:ContactMailingAddress>
+									-
+									<nc:StructuredAddress>
+										-
+										<nc:LocationStreet>
+
+											<nc:StreetFullText />
+
+										</nc:LocationStreet>
+
+										<nc:AddressSecondaryUnitText />
+
+										<nc:LocationCityName />
+
+										<nc:LocationStateName />
+
+										<nc:LocationCountryFIPS10-4Code>US</nc:LocationCountryFIPS10-4Code>
+
+										<nc:LocationPostalCode />
+
+									</nc:StructuredAddress>
+
+								</nc:ContactMailingAddress>
+
+							</nc:ContactInformation>
+
+						</ecf:PersonAugmentation>
+
+					</ecf:EntityPerson>
+
+					<ecf:CaseParticipantRoleCode>6610</ecf:CaseParticipantRoleCode>
+
+				</ecf:CaseParticipant>
+				-
+				<ecf:CaseParticipant>
+					-
+					<ecf:EntityOrganization s:id="Party2">
+						-
+						<nc:OrganizationIdentification>
+
+							<nc:IdentificationID>32af7ac6-a0cb-4741-a53b-20145714f172</nc:IdentificationID>
+
+							<nc:IdentificationCategoryText>CASEPARTYID</nc:IdentificationCategoryText>
+
+						</nc:OrganizationIdentification>
+
+						<nc:OrganizationName>The People of the State of California</nc:OrganizationName>
+						-
+						<ecf:OrganizationAugmentation>
+							-
+							<nc:ContactInformation>
+								-
+								<nc:ContactTelephoneNumber>
+									-
+									<nc:FullTelephoneNumber>
+
+										<nc:TelephoneNumberFullID />
+
+									</nc:FullTelephoneNumber>
+
+								</nc:ContactTelephoneNumber>
+
+								<nc:ContactEmailID />
+								-
+								<nc:ContactMailingAddress>
+									-
+									<nc:StructuredAddress>
+										-
+										<nc:LocationStreet>
+
+											<nc:StreetFullText />
+
+										</nc:LocationStreet>
+
+										<nc:AddressSecondaryUnitText />
+
+										<nc:LocationCityName />
+
+										<nc:LocationStateName />
+
+										<nc:LocationCountryFIPS10-4Code>US</nc:LocationCountryFIPS10-4Code>
+
+										<nc:LocationPostalCode />
+
+									</nc:StructuredAddress>
+
+								</nc:ContactMailingAddress>
+
+							</nc:ContactInformation>
+
+						</ecf:OrganizationAugmentation>
+
+					</ecf:EntityOrganization>
+
+					<ecf:CaseParticipantRoleCode>17088</ecf:CaseParticipantRoleCode>
+
+				</ecf:CaseParticipant>
+				-
+				<ecf:CaseParticipant>
+					-
+					<ecf:EntityOrganization s:id="Party3">
+						-
+						<nc:OrganizationIdentification>
+
+							<nc:IdentificationID>227f7247-d682-44af-a87c-7ef2730e2b04</nc:IdentificationID>
+
+							<nc:IdentificationCategoryText>CASEPARTYID</nc:IdentificationCategoryText>
+
+						</nc:OrganizationIdentification>
+
+						<nc:OrganizationName>The People of the State of California</nc:OrganizationName>
+						-
+						<ecf:OrganizationAugmentation>
+							-
+							<nc:ContactInformation>
+								-
+								<nc:ContactTelephoneNumber>
+									-
+									<nc:FullTelephoneNumber>
+
+										<nc:TelephoneNumberFullID />
+
+									</nc:FullTelephoneNumber>
+
+								</nc:ContactTelephoneNumber>
+
+								<nc:ContactEmailID />
+								-
+								<nc:ContactMailingAddress>
+									-
+									<nc:StructuredAddress>
+										-
+										<nc:LocationStreet>
+
+											<nc:StreetFullText />
+
+										</nc:LocationStreet>
+
+										<nc:AddressSecondaryUnitText />
+
+										<nc:LocationCityName />
+
+										<nc:LocationStateName />
+
+										<nc:LocationCountryFIPS10-4Code>US</nc:LocationCountryFIPS10-4Code>
+
+										<nc:LocationPostalCode />
+
+									</nc:StructuredAddress>
+
+								</nc:ContactMailingAddress>
+
+							</nc:ContactInformation>
+
+						</ecf:OrganizationAugmentation>
+
+					</ecf:EntityOrganization>
+
+					<ecf:CaseParticipantRoleCode>17088</ecf:CaseParticipantRoleCode>
+
+				</ecf:CaseParticipant>
+
+				<tyler:CaseTypeText>2597</tyler:CaseTypeText>
+
+				<tyler:FilerTypeText />
+
+			</tyler:CaseAugmentation>
+			-
+			<criminal:CaseCharge>
+
+				<criminal:ChargeOffense />
+
+				<criminal:ChargeAmendedIndicator>false</criminal:ChargeAmendedIndicator>
+
+			</criminal:CaseCharge>
+
+		</criminal:CriminalCase>
+		-
+		<ecf:FilingStatus>
+
+			<nc:StatusDescriptionText>filing has been rejected</nc:StatusDescriptionText>
+
+			<ecf:FilingStatusCode>rejected</ecf:FilingStatusCode>
+
+		</ecf:FilingStatus>
+		-
+		<tyler:ReviewedLeadDocument>
+
+			<nc:DocumentDescriptionText>HTA</nc:DocumentDescriptionText>
+
+			<nc:DocumentFileControlID>8275166</nc:DocumentFileControlID>
+
+			<nc:DocumentSequenceID>0</nc:DocumentSequenceID>
+			-
+			<ecf:DocumentMetadata>
+
+				<j:RegisterActionDescriptionText>86616</j:RegisterActionDescriptionText>
+				-
+				<ecf:FilingAttorneyID>
+
+					<nc:IdentificationID>1901400d-95db-4fda-8af3-76f515c103e4</nc:IdentificationID>
+
+					<nc:IdentificationCategoryText>IDENTIFICATION</nc:IdentificationCategoryText>
+
+				</ecf:FilingAttorneyID>
+				-
+				<ecf:FilingPartyID>
+
+					<nc:IdentificationID>9254a7fe-257a-4234-a62f-16daa7e8be3f</nc:IdentificationID>
+
+					<nc:IdentificationCategoryText>IDENTIFICATION</nc:IdentificationCategoryText>
+
+				</ecf:FilingPartyID>
+
+			</ecf:DocumentMetadata>
+			-
+			<ecf:DocumentRendition>
+				-
+				<ecf:DocumentRenditionMetadata>
+					-
+					<ecf:DocumentAttachment>
+
+						<nc:BinaryDescriptionText>HTA.pdf</nc:BinaryDescriptionText>
+
+						<nc:BinaryFormatStandardName>31729</nc:BinaryFormatStandardName>
+
+						<nc:BinaryCategoryText>332</nc:BinaryCategoryText>
+
+						<ecf:AttachmentSequenceID>0</ecf:AttachmentSequenceID>
+
+					</ecf:DocumentAttachment>
+
+				</ecf:DocumentRenditionMetadata>
+
+			</ecf:DocumentRendition>
+
+			<tyler:FilingReviewCommentsText>my comment</tyler:FilingReviewCommentsText>
+
+			<tyler:RejectReasonText>1 - Rejected</tyler:RejectReasonText>
+
+		</tyler:ReviewedLeadDocument>
+
+	</ReviewFilingCallbackMessage>
+	-
+	<PaymentReceiptMessage xmlns="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:PaymentReceiptMessage-4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2">
+
+		<FeeExceptionReasonCode xmlns="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:PaymentMessage-4.0" />
+
+		<FeeExceptionSupportingText xmlns="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:PaymentMessage-4.0" />
+
+		<PayerName xmlns="urn:oasis:names:tc:legalxml-courtfiling:schema:xsd:PaymentMessage-4.0" />
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Grand Total</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Redaction Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Mail Service Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Provider Tax Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Provider Service Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Court Service Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Service Tax Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Filing & Service Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Court Filing Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Court Party Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Total Court Case Fees</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+		-
+		<cac:AllowanceCharge>
+
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+
+			<cbc:AllowanceChargeReason>Convenience Fee</cbc:AllowanceChargeReason>
+
+			<cbc:Amount currencyID="USD">0.00</cbc:Amount>
+			-
+			<cac:PaymentMeans>
+
+				<cbc:PaymentMeansCode />
+
+				<cbc:InstructionID />
+
+				<cbc:PaymentID />
+
+			</cac:PaymentMeans>
+
+		</cac:AllowanceCharge>
+
+		<cac:Address />
+		-
+		<cac:Payment>
+
+			<cbc:ID />
+
+			<cbc:PaidAmount currencyID="USD">0.00</cbc:PaidAmount>
+
+		</cac:Payment>
+
+	</PaymentReceiptMessage>
+
+</NotifyFilingReviewCompleteRequestMessage>
