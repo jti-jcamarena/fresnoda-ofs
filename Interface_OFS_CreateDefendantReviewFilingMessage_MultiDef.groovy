@@ -1131,6 +1131,7 @@ String connectingDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERF
           String attyFirstName = filingAttorney != null ? filingAttorney.person.firstName : "Anthony";
           String attyMiddleName = filingAttorney != null ? filingAttorney.person.middleName : "";
           logger("1141:cParty_:${cParty_}");
+          //cParty_.firstName cParty_.lastName cParty_.lastName
           logger("1117:cOldCaseFiling :${cOldCaseFiling }");
           String otherCaseNumberMemo = cOldCaseFiling?.memo;
           otherCaseNumberMemo = otherCaseNumberMemo == null ? "" : otherCaseNumberMemo;
@@ -1139,8 +1140,8 @@ String connectingDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERF
             OFS_CaseXml.append( "<CaseInitialFilingID>${otherCaseNumberMemo.substring(0, otherCaseNumberMemo.indexOf(" ")).trim()}</CaseInitialFilingID>" );
             OFS_CaseXml.append( "<CaseTitle>${otherCaseNumberMemo.substring(otherCaseNumberMemo.indexOf(" ")).trim()}</CaseTitle>" );
           } else {
-            OFS_CaseXml.append( "<CaseTitle></CaseTitle>" );
             OFS_CaseXml.append( "<CaseInitialFilingID></CaseInitialFilingID>" );
+            OFS_CaseXml.append( "<CaseTitle>The People of the State of California vs. ${cParty_.fml}</CaseTitle>" );
           }
             OFS_CaseXml.append( "<CaseCourtLocation>${xmlStrUtil(eProsCfg_.sCaseCourtLocation_)}</CaseCourtLocation>" );
           if (eProsCfg_.sCaseNumber_ == null){
