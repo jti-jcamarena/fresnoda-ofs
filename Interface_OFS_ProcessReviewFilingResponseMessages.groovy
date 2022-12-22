@@ -431,11 +431,11 @@ public class ProcessReviewFilingResponseMsgInterface {
               logger("431 cJSluper.rfResponse.caseTrackingId: ${cJSluper.rfResponse.caseTrackingId}")
 				// Update case w/ the court caseDocketId and caseTrackingId if available from notification response
 			    if( !StringUtil.isNullOrEmpty(cJSluper.rfResponse.caseTrackingId) ) {
-					List<OtherCaseNumber> lOthCasNbr = cCase.collect("otherCaseNumbers[type=='CRT' && ((memo == null || memo.isEmpty()) || memo == #p1)]", "${cJSluper.rfResponse.caseFilingId} ${cJSluper.rfResponse.filingCaseTitleText}");
+					List<OtherCaseNumber> lOthCasNbr = cCase.collect("otherCaseNumbers[type=='CRT' && ((memo == null || memo.isEmpty()) || memo == #p1)]", "${cJSluper.rfResponse.filingCaseTitleText}");
 					OtherCaseNumber cOthCasNbr = lOthCasNbr.last() ?: new OtherCaseNumber();
                     logger("Add or Update CRT Number");
 					// Add other case attributes
-                    cOthCasNbr.memo = cOthCasNbr.memo == null || cOthCasNbr.memo.trim().isEmpty() ? "${cJSluper.rfResponse.caseFilingId} ${cJSluper.rfResponse.filingCaseTitleText}" : cOthCasNbr.memo;
+                    cOthCasNbr.memo = cOthCasNbr.memo == null || cOthCasNbr.memo.trim().isEmpty() ? "${cJSluper.rfResponse.filingCaseTitleText}" : cOthCasNbr.memo;
 					cOthCasNbr.type = 'CRT';
 					cOthCasNbr.cf_OFSCaseTrackingID = cJSluper.rfResponse.caseTrackingId;
 					cOthCasNbr.case = cCase;
@@ -478,7 +478,26 @@ public class ProcessReviewFilingResponseMsgInterface {
                 cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle.trim().isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
 				cDocStat.statusType = sStatusCode;
 				cDocStat.document= cFilingDoc;
-
+                cDocStat.cf_OdysseyFilingDocId = cDocStat.cf_OdysseyFilingDocId == null || cDocStat.cf_OdysseyFilingDocId.isEmpty() ? cJSluper.rfResponse.caseFilingId : cDocStat.cf_OdysseyFilingDocId ;
+              String filingReviewCommentsText = cJSluper.rfResponse.filingReviewCommentsText;
+              String newCourtNumber;
+if (filingReviewCommentsText.contains("Case Number") || filingReviewCommentsText.contains("CaseNumber")){
+  newCourtNumber = filingReviewCommentsText.split("Number")[1]
+  newCourtNumber = newCourtNumber.replaceAll("\\.","");
+  //cOthCasNbr.sourceCaseNumber = newCourtNumber;
+  List<OtherCaseNumber> newCourtNumberIssuedList = cCase.collect("otherCaseNumbers[type=='CRT' && updateReason == 'CRTComment' && number == #p1 && memo == #p2]", newCourtNumber, cJSluper.rfResponse.filingCaseTitleText);
+					OtherCaseNumber newCourtNumberIssued = newCourtNumberIssuedList.last() ?: new OtherCaseNumber();
+                    newCourtNumberIssued.case = cCase;
+                    newCourtNumberIssued.type = "CRT";
+                    newCourtNumberIssued.number = newCourtNumber.trim();
+                    newCourtNumberIssued.memo = cJSluper.rfResponse.filingCaseTitleText;
+                    newCourtNumberIssued.updateReason = "CRTComment";
+                    newCourtNumberIssued.saveOrUpdate();
+  if (cCase.collect("otherCaseNumbers[number == #p1]", newCourtNumber).isEmpty()){
+    cCase.otherCaseNumbers.add(newCourtNumberIssued)
+  }
+}
+              logger("487:newCourtNumber:${newCourtNumber}")
 				// Add/Update document status entity
 				if( bIsNewDocStatus ) // add?
 					cFilingDoc.statuses.add(cDocStat);
@@ -672,6 +691,9 @@ public class ProcessReviewFilingResponseMsgInterface {
 				 logger("643: Searching for original document filing based on submitting document Id(${cJSluper.rfResponse.ePros.submitDocRefId})");
 				 cDoc = (Document) cCase.collect("documents[id==#p1]", cJSluper.rfResponse.ePros.submitDocRefId.toLong())?.last();
 			 }
+           if (cDoc == null){
+             cDoc = Document.get(Long.parseLong(cJSluper.rfResponse.documentFileControlID));
+           }
 
 		 } catch (Exception ex) {
 			 logger iTracking_.setException(ex.message, "Exception::getAssociatedDoc - Document association error");
@@ -717,6 +739,9 @@ public class ProcessReviewFilingResponseMsgInterface {
 				logger("880: Searching for case using caseFilingId(${cJSluper.rfResponse.caseFilingId})");
 				Where w = new Where().addEquals('cf_OdysseyFilingDocId',cJSluper.rfResponse.caseFilingId );
 				DocumentStatus thisDocStatus = DomainObject.find(DocumentStatus.class, w, maxResult(1))[0]; logger("682: thisDocStatus: ${thisDocStatus}")
+              logger("720:cJSluper.rfResponse.documentFileControlID:${cJSluper.rfResponse.documentFileControlID}")
+              cCase = Document.get(Long.parseLong(cJSluper.rfResponse.documentFileControlID))?.case;
+              
               if (thisDocStatus != null){
                 cCase = thisDocStatus.document.case;
               }
