@@ -401,13 +401,13 @@ public class CreateDefPtyReviewFilingInterface {
 
 			// Set tracking parameters for esl service
 			
-          OtherCaseNumber cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && number != null && !number.isEmpty() && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
+          OtherCaseNumber cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && (updateReason == null || updateReason != 'CRTComment') && number != null && !number.isEmpty() && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
           logger("405:cOldCaseFiling:${cOldCaseFiling}; ${cOldCaseFiling?.number}; cParty_.firstName:${cParty_.firstName}; cParty_.lastName:${cParty_.lastName}; memo: ${cOldCaseFiling?.memo}");
           
-          OtherCaseNumber cOldCaseFilingForUnmatchedParty = cCase.collect("otherCaseNumbers[type=='CRT' && number != null && !number.isEmpty() && memo != null && !memo.isEmpty()]").orderBy("lastUpdated").last();
+          OtherCaseNumber cOldCaseFilingForUnmatchedParty = cCase.collect("otherCaseNumbers[type=='CRT' && (updateReason == null || updateReason != 'CRTComment') && number != null && !number.isEmpty() && memo != null && !memo.isEmpty()]").orderBy("lastUpdated").last();
           logger("408:cOldCaseFilingForUnmatchedParty:${cOldCaseFilingForUnmatchedParty}; ${cOldCaseFilingForUnmatchedParty?.number}");
           
-          OtherCaseNumber cOldCaseFilingForUnmatchedPartyMemoEmpty = cCase.collect("otherCaseNumbers[type=='CRT' && number != null && !number.isEmpty() && (memo == null || memo.isEmpty())]").orderBy("lastUpdated").last();
+          OtherCaseNumber cOldCaseFilingForUnmatchedPartyMemoEmpty = cCase.collect("otherCaseNumbers[type=='CRT' && (updateReason == null || updateReason != 'CRTComment') && number != null && !number.isEmpty() && (memo == null || memo.isEmpty())]").orderBy("lastUpdated").last();
           logger("411:cOldCaseFilingForUnmatchedPartyMemoEmpty:${cOldCaseFilingForUnmatchedPartyMemoEmpty}; ${cOldCaseFilingForUnmatchedPartyMemoEmpty?.number}");
           
           if (cOldCaseFiling == null && cOldCaseFilingForUnmatchedPartyMemoEmpty != null && cOldCaseFilingForUnmatchedPartyMemoEmpty.number != null){

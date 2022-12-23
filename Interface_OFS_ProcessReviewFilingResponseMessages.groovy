@@ -380,15 +380,16 @@ public class ProcessReviewFilingResponseMsgInterface {
 			}
 
           logger("382:Response message type detected = (${cJSluper.rfResponse.reviewFilingResponse}) " + ((cJSluper.rfResponse.reviewFilingResponse == false) ? "[NotifyFiling]" : "[ReviewFiling]"));
-			if (cJSluper.rfResponse.reviewFilingResponse == false)  // notifyFiling?
+          if (cJSluper.rfResponse.reviewFilingResponse == false){  // notifyFiling?
 				nResponseType_ = "NotifyReviewFiling";    // has caseDocketId, set notification type response
-
+          }
+logger("386:");
 			// Search for any JSON structure reject errors before validating values
 			if (this.aESuiteErrorList_.findAll { e -> e.bReject_ && !e.bProcessed_ }.size() > 0 ||
 					this.aApiErrorList_.findAll { e -> e.bReject_ && !e.bProcessed_ }.size() > 0) {
 				return false;
 			}
-
+logger("392:");
 			// -------------------------- Validate rfResponse JSON values
 
 			// If notification response, check for exception error here and report it since the notification response
@@ -400,9 +401,18 @@ public class ProcessReviewFilingResponseMsgInterface {
 				this.aESuiteErrorList_.add(new eSuiteError(true, "Notify response service reported exception - ${cJSluper.rfResponse.exception}"));
 				return false;
 			}
-
+          logger("404:${cJSluper.rfResponse.documentFileControlID}");
 			// Attempt to find the associated case by using the original ePros submitting document.id
-			Case cCase = getAssociatedCase(cJSluper);
+          Document cFilingDoc;
+          if (cJSluper.rfResponse.documentFileControlID != null){
+          cFilingDoc = Document.get(Long.parseLong(cJSluper.rfResponse.documentFileControlID)); logger("408:");
+          } else {
+           cFilingDoc = Document.get(Long.parseLong(cJSluper.rfResponse.ePros.submitDocRefId)); logger("410:");
+          }
+          logger("412:");
+          
+	      Case cCase = cFilingDoc?.case;// getAssociatedCase(cJSluper);
+          logger("407:cFilingDoc:${cFilingDoc}; cCase:${cCase}");
 			if ( cCase != null ) {    // valid case?
 				iTracking_.setCaseNumber(cCase.caseNumber, cCase);    // associate caseNumber / case reference to tracking
 			} else {	// error
@@ -411,7 +421,7 @@ public class ProcessReviewFilingResponseMsgInterface {
 			}
 
 			// Find valid ePros document using response submission document reference ID from original filing
-			Document cFilingDoc= getAssociatedDoc( cCase, cJSluper );
+			//Document cFilingDoc= Document.get(Long.parseLong(cJSluper.rfResponse.documentFileControlID));// getAssociatedDoc( cCase, cJSluper ); 
 			if( cFilingDoc == null ) {
 				this.aESuiteErrorList_.add(new eSuiteError(true, cCase.caseNumber, logger("No valid case filing document found for filing response")));
 				return false;
@@ -461,7 +471,8 @@ public class ProcessReviewFilingResponseMsgInterface {
 
 				// Find latest status w/ received by court or create new instance if not found just in case
 				boolean bIsNewDocStatus = false;
-				DocumentStatus cDocStat = getLatestDocumentStatus(cFilingDoc, (String)mDocStatus_.ofsRecv, cJSluper.rfResponse.caseFilingId);
+			  DocumentStatus cDocStat = getLatestDocumentStatus(cFilingDoc, (String)mDocStatus_.ofsRecv, cJSluper.rfResponse.caseFilingId);
+              //DocumentStatus cDocStat = Document.get(Long.parseLong(cJSluper.rfResponse.documentFileControlID));
               logger("465: cDocStat: ${cDocStat}; cJSluper.rfResponse.caseFilingId: ${cJSluper.rfResponse.caseFilingId}")
 				if( cDocStat == null ) {
 					logger("465: StatusType(${mDocStatus_.ofsRecv}) not found, adding new documentStatus; caseTrackingId:${cJSluper.rfResponse.caseTrackingId}");
