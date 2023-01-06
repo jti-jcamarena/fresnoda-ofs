@@ -441,7 +441,7 @@ logger("392:");
               logger("431 cJSluper.rfResponse.caseTrackingId: ${cJSluper.rfResponse.caseTrackingId}")
 				// Update case w/ the court caseDocketId and caseTrackingId if available from notification response
 			    if( !StringUtil.isNullOrEmpty(cJSluper.rfResponse.caseTrackingId) ) {
-					List<OtherCaseNumber> lOthCasNbr = cCase.collect("otherCaseNumbers[type=='CRT' && ((memo == null || memo.isEmpty()) || memo == #p1)]", "${cJSluper.rfResponse.filingCaseTitleText}");
+					List<OtherCaseNumber> lOthCasNbr = cCase.collect("otherCaseNumbers[type=='CRT' && ((memo == null || memo.isEmpty()) || memo == #p1) && (updateReason == null || updateReason != #p2)]", "${cJSluper.rfResponse.filingCaseTitleText}", "CRTComment");
 					OtherCaseNumber cOthCasNbr = lOthCasNbr.last() ?: new OtherCaseNumber();
                     logger("Add or Update CRT Number");
 					// Add other case attributes
@@ -449,7 +449,7 @@ logger("392:");
 					cOthCasNbr.type = 'CRT';
 					cOthCasNbr.cf_OFSCaseTrackingID = cJSluper.rfResponse.caseTrackingId;
 					cOthCasNbr.case = cCase;
-					if ( !StringUtil.isNullOrEmpty(cJSluper.rfResponse.caseDocketId) ) // valid court#?
+					if ( !StringUtil.isNullOrEmpty(cJSluper.rfResponse.caseDocketId) && cOthCasNbr.updateReason != "CRTComment") // valid court#?
 						cOthCasNbr.number = cJSluper.rfResponse.caseDocketId;
 	 			    else
 						this.aESuiteErrorList_.add(new eSuiteError(false, cCase.caseNumber, logger("No caseDocketId found in review notification response message")));
@@ -472,6 +472,7 @@ logger("392:");
 				// Find latest status w/ received by court or create new instance if not found just in case
 				boolean bIsNewDocStatus = false;
 			  DocumentStatus cDocStat = getLatestDocumentStatus(cFilingDoc, (String)mDocStatus_.ofsRecv, cJSluper.rfResponse.caseFilingId);
+              //DocumentStatus cDocStat = DomainObject.find(DocumentStatus.class, "document", cFilingDoc, "cf_OdysseyFilingCaseTitle", cJSluper.rfResponse.filingCaseTitleText)?.sort({a,b -> a.id <=> b.id})?.find({thisObject -> thisObject != null});
               //DocumentStatus cDocStat = Document.get(Long.parseLong(cJSluper.rfResponse.documentFileControlID));
               logger("465: cDocStat: ${cDocStat}; cJSluper.rfResponse.caseFilingId: ${cJSluper.rfResponse.caseFilingId}")
 				if( cDocStat == null ) {
@@ -489,10 +490,11 @@ logger("392:");
                 cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle.trim().isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
 				cDocStat.statusType = sStatusCode;
 				cDocStat.document= cFilingDoc;
-                cDocStat.cf_OdysseyFilingDocId = cDocStat.cf_OdysseyFilingDocId == null || cDocStat.cf_OdysseyFilingDocId.isEmpty() ? cJSluper.rfResponse.caseFilingId : cDocStat.cf_OdysseyFilingDocId ;
+                //cDocStat.cf_OdysseyFilingDocId = cDocStat.cf_OdysseyFilingDocId == null || cDocStat.cf_OdysseyFilingDocId.isEmpty() ? cJSluper.rfResponse.caseFilingId : cDocStat.cf_OdysseyFilingDocId ;
+              cDocStat.cf_OdysseyFilingDocId = cJSluper.rfResponse.caseFilingId;
               String filingReviewCommentsText = cJSluper.rfResponse.filingReviewCommentsText;
               String newCourtNumber;
-if (filingReviewCommentsText.contains("Case Number") || filingReviewCommentsText.contains("CaseNumber")){
+/*if (filingReviewCommentsText.contains("Case Number") || filingReviewCommentsText.contains("CaseNumber")){
   newCourtNumber = filingReviewCommentsText.split("Number")[1]
   newCourtNumber = newCourtNumber.replaceAll("\\.","");
   //cOthCasNbr.sourceCaseNumber = newCourtNumber;
@@ -507,7 +509,7 @@ if (filingReviewCommentsText.contains("Case Number") || filingReviewCommentsText
   if (cCase.collect("otherCaseNumbers[number == #p1]", newCourtNumber).isEmpty()){
     cCase.otherCaseNumbers.add(newCourtNumberIssued)
   }
-}
+}*/
               logger("487:newCourtNumber:${newCourtNumber}")
 				// Add/Update document status entity
 				if( bIsNewDocStatus ) // add?
@@ -663,7 +665,9 @@ if (filingReviewCommentsText.contains("Case Number") || filingReviewCommentsText
 			logger "597: Searching for latest documentStatus w/ statusType = [$sWith]"
 
 			//DocumentStatus cDocStatus = cDoc.collect("statuses[cf_OdysseyFilingDocId == #p1]", caseTrackingId)?.orderBy("lastUpdated")?.find({thisObject -> thisObject != null});
-            DocumentStatus cDocStatus = DomainObject.find(DocumentStatus.class, "document", cDoc, "cf_OdysseyFilingDocId", caseTrackingId.toString())?.sort({a,b -> a.id <=> b.id})?.find({thisObject -> thisObject != null});
+          DocumentStatus cDocStatus = DomainObject.find(DocumentStatus.class, "document", cDoc, "cf_OdysseyFilingDocId", caseTrackingId.toString())?.sort({a,b -> a.id <=> b.id})?.find({thisObject -> thisObject != null});
+          
+          //DocumentStatus cDocStatus = DomainObject.find(DocumentStatus.class, "document", cDoc)?.sort({a,b -> b.id <=> a.id})?.find({thisObject -> thisObject != null});
           
           logger("cDoc: ${cDoc}; statuses: ${cDoc.collect("statuses.cf_OdysseyFilingDocId")} ;${caseTrackingId.toString()}")
 			if( cDocStatus != null ) {
