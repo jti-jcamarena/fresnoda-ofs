@@ -441,11 +441,17 @@ logger("392:");
               logger("431 cJSluper.rfResponse.caseTrackingId: ${cJSluper.rfResponse.caseTrackingId}")
 				// Update case w/ the court caseDocketId and caseTrackingId if available from notification response
 			    if( !StringUtil.isNullOrEmpty(cJSluper.rfResponse.caseTrackingId) ) {
-					List<OtherCaseNumber> lOthCasNbr = cCase.collect("otherCaseNumbers[type=='CRT' && ((memo == null || memo.isEmpty()) || memo == #p1) && (updateReason == null || updateReason != #p2)]", "${cJSluper.rfResponse.filingCaseTitleText}", "CRTComment");
-					OtherCaseNumber cOthCasNbr = lOthCasNbr.last() ?: new OtherCaseNumber();
+                  String newCourtNumber = "";
+                  if (!cJSluper.rfResponse.caseDocketId.startsWith("NYF")){
+  newCourtNumber = filingReviewCommentsText.split(",")[1]
+  newCourtNumber = newCourtNumber?.replaceAll("\\.","")?.trim();
+                  }
+                  if (newCourtNumber?.isEmpty()){
+					List<OtherCaseNumber> lOthCasNbr = cCase.collect("otherCaseNumbers[type == 'CRT' && (memo == null || memo == #p1 || memo.isEmpty() ) && (updateReason == null || updateReason != #p2)]", "${cJSluper.rfResponse.filingCaseTitleText}", "CRTComment");
+					OtherCaseNumber cOthCasNbr = !lOthCasNbr?.isEmpty() ? lOthCasNbr.last() : new OtherCaseNumber();
                     logger("Add or Update CRT Number");
 					// Add other case attributes
-                    cOthCasNbr.memo = cOthCasNbr.memo == null || cOthCasNbr.memo.trim().isEmpty() ? "${cJSluper.rfResponse.filingCaseTitleText}" : cOthCasNbr.memo;
+                    cOthCasNbr.memo = cOthCasNbr.memo == null || cOthCasNbr.memo?.trim()?.isEmpty() ? "${cJSluper.rfResponse.filingCaseTitleText}" : cOthCasNbr.memo;
 					cOthCasNbr.type = 'CRT';
 					cOthCasNbr.cf_OFSCaseTrackingID = cJSluper.rfResponse.caseTrackingId;
 					cOthCasNbr.case = cCase;
@@ -459,6 +465,7 @@ logger("392:");
 
 					logger(((lOthCasNbr.empty)?"Adding":"Updating") + " Case.OtherCaseNumber w/ caseDocketId(${cJSluper.rfResponse.caseDocketId}) and caseTrackingId(${cJSluper.rfResponse.caseTrackingId})");
 					cCase.saveOrUpdate();    // commit it
+                  }
 				} else
 					this.aESuiteErrorList_.add(new eSuiteError(false, cCase.caseNumber, logger("No caseTrackingId found in review notification response message")));
 
@@ -487,29 +494,32 @@ logger("392:");
                 cDocStat.beginDate = cDocStat.beginDate != null ?: java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
                 cDocStat.memo = "${cJSluper.rfResponse.filingStatusText}".toString();
                 //cDocStat.cf_OdysseyFilingEnvelope = "${cJSluper.rfResponse.filingStatusText}".toString();
-                cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle.trim().isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
+                cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle?.trim()?.isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
 				cDocStat.statusType = sStatusCode;
 				cDocStat.document= cFilingDoc;
                 //cDocStat.cf_OdysseyFilingDocId = cDocStat.cf_OdysseyFilingDocId == null || cDocStat.cf_OdysseyFilingDocId.isEmpty() ? cJSluper.rfResponse.caseFilingId : cDocStat.cf_OdysseyFilingDocId ;
               cDocStat.cf_OdysseyFilingDocId = cJSluper.rfResponse.caseFilingId;
               String filingReviewCommentsText = cJSluper.rfResponse.filingReviewCommentsText;
               String newCourtNumber;
-/*if (filingReviewCommentsText.contains("Case Number") || filingReviewCommentsText.contains("CaseNumber")){
-  newCourtNumber = filingReviewCommentsText.split("Number")[1]
-  newCourtNumber = newCourtNumber.replaceAll("\\.","");
+if (cJSluper.rfResponse.caseDocketId.startsWith("NYF") && filingReviewCommentsText.contains(",")){
+  newCourtNumber = filingReviewCommentsText.split(",")[1]
+  newCourtNumber = newCourtNumber?.replaceAll("\\.","")?.trim();
   //cOthCasNbr.sourceCaseNumber = newCourtNumber;
-  List<OtherCaseNumber> newCourtNumberIssuedList = cCase.collect("otherCaseNumbers[type=='CRT' && updateReason == 'CRTComment' && number == #p1 && memo == #p2]", newCourtNumber, cJSluper.rfResponse.filingCaseTitleText);
-					OtherCaseNumber newCourtNumberIssued = newCourtNumberIssuedList.last() ?: new OtherCaseNumber();
+  List<OtherCaseNumber> newCourtNumberIssuedList = cCase.collect("otherCaseNumbers[type=='CRT' && number == #p1 && memo == #p2]", newCourtNumber, cJSluper.rfResponse.filingCaseTitleText);
+  ArrayList newCourtNumberIssuedList2 = DomainObject.find(OtherCaseNumber.class, "case.id", cCase.id, "number", newCourtNumber, "memo", cJSluper.rfResponse.filingCaseTitleText, "type", "CRT");
+  logger("503: " + DomainObject.find(OtherCaseNumber.class, "case.id", cCase.id, "number", newCourtNumber, "memo", cJSluper.rfResponse.filingCaseTitleText, "type", "CRT"));
+  logger("504: newCourtNumber:${newCourtNumber};memo:${cJSluper.rfResponse.filingCaseTitleText}");
+					OtherCaseNumber newCourtNumberIssued = newCourtNumberIssuedList2 != null && !newCourtNumberIssuedList2?.isEmpty() ? newCourtNumberIssuedList2.last() : new OtherCaseNumber();
                     newCourtNumberIssued.case = cCase;
                     newCourtNumberIssued.type = "CRT";
                     newCourtNumberIssued.number = newCourtNumber.trim();
                     newCourtNumberIssued.memo = cJSluper.rfResponse.filingCaseTitleText;
-                    newCourtNumberIssued.updateReason = "CRTComment";
+                    
                     newCourtNumberIssued.saveOrUpdate();
-  if (cCase.collect("otherCaseNumbers[number == #p1]", newCourtNumber).isEmpty()){
+  if (cCase.collect("otherCaseNumbers[number == #p1]", newCourtNumber)?.isEmpty()){
     cCase.otherCaseNumbers.add(newCourtNumberIssued)
   }
-}*/
+}
               logger("487:newCourtNumber:${newCourtNumber}")
 				// Add/Update document status entity
 				if( bIsNewDocStatus ) // add?
@@ -581,7 +591,7 @@ logger("392:");
                     cDocStat.memo = "${cJSluper.rfResponse.filingStatusText}".toString();
                     cDocStat.cf_OdysseyFilingEnvelope = "${cJSluper.rfResponse.filingEnvelopeId}".toString();
                     cDocStat.sourceCaseNumber = "${cJSluper.rfResponse.filingDefendantFullName}".toString();
-                    cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle.trim().isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
+                    cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle?.trim()?.isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
                     //logger("552: " +cJSluper.rfResponse.filingDocuments.getClass());
 
                   }
@@ -610,7 +620,7 @@ logger("392:");
               if (cDocStat.cf_OdysseyFilingData2 == null){
                 cDocStat.cf_OdysseyFilingData2 = cJSluper.rfResponse;
               }
-                if (cJSluper.rfResponse?.filingDocuments != null && cDocStat.collect("xrefs[entityType=='Document' and refType=='FILING']").isEmpty()){
+                if (cJSluper.rfResponse?.filingDocuments != null && cDocStat.collect("xrefs[entityType=='Document' and refType=='FILING']")?.isEmpty()){
                       cJSluper.rfResponse?.filingDocuments?.each({
                         thisFiledDocument -> 
                         logger("Doc " +Document.get(Long.parseLong(thisFiledDocument)));
@@ -865,7 +875,7 @@ logger("392:");
 	public Case getCase(String sCaseNumber) {
 		if ( sCaseNumber != null ) return null;
 		List<Case> cas = DomainObject.find(Case.class, 'caseNumber', '=', sCaseNumber, maxResult(1));
-		return (cas.isEmpty()) ? null : cas.last();
+		return (cas?.isEmpty()) ? null : cas.last();
 	}
 
 	/** ------------------------------------------------------------------------------------
