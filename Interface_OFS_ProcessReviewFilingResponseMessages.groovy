@@ -308,13 +308,13 @@ public class ProcessReviewFilingResponseMsgInterface {
 			// Finalize script execution
 			logger("Script complete");
 			finalizeScriptExecution();
-
+			logger("311:")
 			// Create return json response
 			cRule_._eResponse = cApiResponse_.getResponseJson().toString();
 			if (bDebug_) logger cApiResponse_.getResponseJson().toPrettyString();
 
 		} catch (Exception ex) {
-			logger iTracking_.setException(ex.message, "Exception::exec - Case execution handler");
+			logger iTracking_.setException(ex.message, "317:Exception::exec - Case execution handler");
 			iTracking_.updateResult(MyInterfaceTracking.RESULT_FAIL_EXCEPTION_);
 		}
 	}
@@ -442,9 +442,13 @@ logger("392:");
 				// Update case w/ the court caseDocketId and caseTrackingId if available from notification response
 			    if( !StringUtil.isNullOrEmpty(cJSluper.rfResponse.caseTrackingId) ) {
                   String newCourtNumber = "";
-                  if (!cJSluper.rfResponse.caseDocketId.startsWith("NYF")){
-  newCourtNumber = filingReviewCommentsText.split(",")[1]
+                  try {
+                  if (cJSluper.rfResponse.caseDocketId.startsWith("NYF") && cJSluper.rfResponse.filingReviewCommentsText != null){
+  newCourtNumber = cJSluper.rfResponse.filingReviewCommentsText?.split(",")[1]
   newCourtNumber = newCourtNumber?.replaceAll("\\.","")?.trim();
+                  }
+                  }catch (Exception exception){
+                    logger("${exception.getMessage()}");
                   }
                   if (newCourtNumber?.isEmpty()){
 					List<OtherCaseNumber> lOthCasNbr = cCase.collect("otherCaseNumbers[type == 'CRT' && (memo == null || memo == #p1 || memo.isEmpty() ) && (updateReason == null || updateReason != #p2)]", "${cJSluper.rfResponse.filingCaseTitleText}", "CRTComment");
@@ -493,7 +497,9 @@ logger("392:");
 				cDocStat.beginDate = convJsonDateToJavaDate(cJSluper.rfResponse.docFiledDateTime);
                 cDocStat.beginDate = cDocStat.beginDate != null ?: java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
                 cDocStat.memo = "${cJSluper.rfResponse.filingStatusText}".toString();
-                //cDocStat.cf_OdysseyFilingEnvelope = "${cJSluper.rfResponse.filingStatusText}".toString();
+                cDocStat.cf_OdysseyFilingDataComments = "${cJSluper.rfResponse.filingReviewCommentsText}".toString();
+                cDocStat.cf_OdysseyFilingData4 = "${cJSluper.rfResponse.documentReviewerGivenName} ${cJSluper.rfResponse.documentReviewerSurName}".toString();
+                //cDocStat.cf_OdysseyFilingData5 = cJSluper.rfResponse.authenticatedFilingUser != null ? "${cJSluper.rfResponse.authenticatedFilingUser}".toString() : null;
                 cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle?.trim()?.isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
 				cDocStat.statusType = sStatusCode;
 				cDocStat.document= cFilingDoc;
@@ -592,7 +598,8 @@ if (cJSluper.rfResponse.caseDocketId.startsWith("NYF") && filingReviewCommentsTe
                     cDocStat.cf_OdysseyFilingEnvelope = "${cJSluper.rfResponse.filingEnvelopeId}".toString();
                     cDocStat.sourceCaseNumber = "${cJSluper.rfResponse.filingDefendantFullName}".toString();
                     cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle?.trim()?.isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
-                    //logger("552: " +cJSluper.rfResponse.filingDocuments.getClass());
+                    
+                    cDocStat.cf_OdysseyFilingData5 = cJSluper.rfResponse.authenticatedFilingUser != null && StringUtil.isNullOrEmpty(cDocStat.cf_OdysseyFilingData5) ? "${cJSluper.rfResponse.authenticatedFilingUser}".toString() : null;
 
                   }
                   else {
@@ -1002,31 +1009,31 @@ if (cJSluper.rfResponse.caseDocketId.startsWith("NYF") && filingReviewCommentsTe
 
 		// Process client/server(eSuite) errors
 		processErrors();
-
+logger("1011:")
 		// Set tracking result based on script execution
 		if ( iTracking_.tracking_.result != iTracking_.RESULT_FAIL_EXCEPTION_ ) {     // no exception error?
 			switch( cApiResponse_.getCode() ) {
 				case apiCodes.ok_:
 					iTracking_.updateResult(iTracking_.RESULT_SUCCESS_);
-
+logger("1017:")
 					// If Debug mode send script trace on success
 					if( bDebug_ )   // debug?
 						sendEmail();
 					break;
 
 				case apiCodes.clientError_:
-					iTracking_.updateResult(iTracking_.RESULT_CLIENTFAIL_);
+					iTracking_.updateResult(iTracking_.RESULT_CLIENTFAIL_); logger("1024:")
 					sendEmail();
 					break;
 
 				case apiCodes.serverError_:
 					cApiResponse_.setCode(apiCodes.ok_); // don't report server errors back to API, just report to ePros
-					iTracking_.updateResult(iTracking_.RESULT_FAILED_);	// Report failed
+					iTracking_.updateResult(iTracking_.RESULT_FAILED_); logger("1030")	// Report failed
 					sendEmail();
 					break;
 			}
 		} else {    // exception error
-			cApiResponse_.setCode(apiCodes.serverError_);         // force server response error
+			cApiResponse_.setCode(apiCodes.serverError_); logger("1035:")         // force server response error
 			cApiResponse_.aServerErrorMap_.add(iTracking_.tracking_.memo);   // set exception info
             sendEmail();    // send email report for exception errors
 		}
@@ -1250,13 +1257,13 @@ class eSuiteError {
 	}
 }
 
-
+/*
 File ofs = new File("\\\\torreypines\\OFS\\out\\queued");
 for (file in ofs.listFiles()){
   if (new java.sql.Timestamp(file.lastModified()).before(java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusMinutes(5L)))){
     org.apache.commons.io.FileUtils.moveFileToDirectory(file, new File("\\\\torreypines\\OFS\\out\\processed"), false);
   }
 }
-
+*/
 
 
