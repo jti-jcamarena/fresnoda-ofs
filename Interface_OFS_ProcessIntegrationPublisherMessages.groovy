@@ -148,7 +148,7 @@ class MyInterfaceTracking {
 		batchDetail.setStatusDate(new Date());
 		batchDetail.setStatus(status);  // [CL_BATCH_METRICS]
 		batchDetail.setValue(value);
-		if( !(memo == null || memo.length() == 0) )
+		if( memo != null && !memo.isEmpty() )
 			batchDetail.setMemo(memo);
 		batchDetail.saveOrUpdate();
 	}
@@ -195,7 +195,7 @@ class MyInterfaceTracking {
 	}
 
 	String setException(String exception, String memo="") {
-        exception = !exception.isEmpty() && exception.length() > 255 ? exception.substring(0, 254) : exception;
+        exception = exception!= null && !exception?.isEmpty() && exception.length() > 255 ? exception.substring(0, 254) : exception;
 		tracking_.setException(exception);
 		if( !StringUtil.isNullOrEmpty(memo) )
 			tracking_.setMemo(memo);
@@ -342,6 +342,14 @@ public class IntegrationPublisherInterface {
 
 			// Filter out and sort all files for processing
 			//fFiles = cSmbFileShareObj_.cSmbFile_.listFiles().findAll {
+          
+          cSmbFileShareObj_.listFiles().each({file ->
+             if (!file.getName().contains("_append_")){
+      String fileName = file.getPath();
+      String timeLongValue = new Date().getTime();
+      file.renameTo(fileName.replace(".xml", "_append_${timeLongValue}.xml".toString()));
+             }});
+          
             fFiles = cSmbFileShareObj_.listFiles().findAll {  
 			         it.toString().toUpperCase() =~ ".XML"}.toList().sort { it.name };
 			logger(fFiles?.size() + " file(s) found to process");
@@ -349,6 +357,7 @@ public class IntegrationPublisherInterface {
 			if (fFiles) {   // input files?
 				// Process all inbound integration xml files
 				for (file in fFiles) {
+
 					if ( !LoadParseIPFile(file) ) // load/parse IP file, exception?
 						return false;
 				}
@@ -368,6 +377,7 @@ public class IntegrationPublisherInterface {
 	 * @Return 0=Failed, 1=Success
 	 */
 	public boolean LoadParseIPFile(File fInputFile) {
+
 		boolean bRetVal= false;
 
 		// Clear tracking parameters for next case
@@ -395,8 +405,8 @@ public class IntegrationPublisherInterface {
             bf.close();
 			Object xmlIPSluper = new XmlSlurper().parseText(sXmlData);
           if (cRule_._excludeCaseTypes.contains(xmlIPSluper.Case.CaseType.@Word)){
-  				org.apache.commons.io.FileUtils.moveFileToDirectory( fInputFile, new File(cRule_._inboundProcessedSmbPath), false);
-                logger("Case.CaseType == ${xmlIPSluper.Case.CaseType.@Word}; this file has been moved to the processed directory.");
+  				org.apache.commons.io.FileUtils.moveFileToDirectory( fInputFile, new File(cRule_._excludeDirectory), false);
+                logger("Case.CaseType == ${xmlIPSluper.Case.CaseType.@Word}; this file has been moved to the exclude directory.");
 				return true;
             }
           
@@ -651,65 +661,86 @@ public class IntegrationPublisherInterface {
 				}
 			}
 
-			// ----------------- Add defendant charges
+			// ----------------- Add defendant charges lines 659-892
 
 			logger("655:<b>Adding defendant charges</b>");
 			int iChgIdx= 0;
-			for( oChgObj in xmlIPSluper.Case.Charge.findAll{ c -> c.@PartyID == sCaseDefPartyId && c.ChargeHistory != null && !c.ChargeHistory.isEmpty()} ) {  // search all party charges
+          if (cCase.collect("specialStatuses[endDate == null && status == 'LOCKEDCHARGES']").isEmpty()){
+          for( oChgObj in xmlIPSluper.Case.Charge.findAll({c -> c.@PartyID == sCaseDefPartyId && !c.ChargeHistory.findAll({itH -> itH.@Stage == "Case Filing" && itH.Statute.Degree.@Word != "NULL"}).isEmpty()})){
+            
+              logger("TEST:662:oChgObj:${oChgObj}")
               	String ipCaseType = xmlIPSluper.Case.CaseType.@Word.toString();
               	def ipChargeHistoryCollection = oChgObj.ChargeHistory.findAll({chistory -> chistory.@CurrentCharge == "true" && (chistory.@Stage == "Case Filing" || chistory.@Stage != null)});
                 String sChgDegree = ipChargeHistoryCollection[ipChargeHistoryCollection.size() -1].Statute.Degree?.text()?.toUpperCase();
+                String sChgDegreeWord = ipChargeHistoryCollection[ipChargeHistoryCollection.size() -1].Statute.Degree.@Word.toString();
                 String sChgSectionNumber = ipChargeHistoryCollection[ipChargeHistoryCollection.size() -1].Statute.StatuteCode.@Word.toString();
 				String sChgNbr = oChgObj?.ChargeTrackNumber?.text()?.replaceAll("^0*", ""); // Add charge# and remove leading 0's
                 String sChgStatuteDescription = ipChargeHistoryCollection[ipChargeHistoryCollection.size() -1].Statute.StatuteDescription?.text()?.toUpperCase();
-              logger("663: sChgDegree: ${sChgDegree}; sChgSectionNumber: ${sChgSectionNumber}; sChgNbr: ${sChgNbr}; sCaseDefPartyId: ${sCaseDefPartyId}");
+
 				// Test for valid charge number
 				if ( !StringUtil.isNullOrEmpty(sChgNbr) ) {   // valid IP charge#
 				  logger("666:Searching for exisiting charge#($sChgNbr)");
                   logger("667:party:${cDefParty}; cf_ofsWord:${sChgSectionNumber}; category:${sChgDegree}; sChgNbr:${sChgNbr}")
-                  logger("668:sChgDegree: ${sChgDegree}")
+
                   //DomainObject.find(Ce_StatuteLanguageChoice.class, "choice", sStatuteNumber, "odysseyDegree", degreeCode);
+                  boolean disamendStatus = false;
                   
                   String degreeCodeMatch = DomainObject.find(LookupItem.class, "lookupList.name", "ODY_DEGREE").find({thisItem -> thisItem.label.toLowerCase() == sChgDegree.toLowerCase() || thisItem.code == sChgDegree})?.code;
-                  ArrayList inputStatuteChoiceList = DomainObject.find(Ce_StatuteLanguageChoice.class, "choice", sChgSectionNumber, "odysseyDegree", degreeCodeMatch);
-                  Statute inputStatute = inputStatuteChoiceList.find({choice -> choice != null && choice.statute != null})?.statute;
-
-                  List<Charge> lChg = cDefParty.collect("charges[statute != null && statute.cf_ofsWord == #p1 && statute.category.startsWith(#p2) && chargeNumber?.replaceAll('^0*', '') == #p3]", sChgSectionNumber, sChgDegree[0], sChgNbr); logger("671: lChg.isEmpty? ${lChg.isEmpty()}");
-                  lChg = lChg.isEmpty() ? cDefParty.collect("charges[statute != null && statute == #p1 && chargeNumber?.replaceAll('^0*', '') == #p2]", inputStatute, sChgNbr?.replaceAll('^0*', '')) : lChg;
-                  lChg = lChg.isEmpty() ? cDefParty.collect("charges[(chargeNumber?.replaceAll('^0*', '') == #p1 || chargeNumber == #p2) && description == #p3]", sChgNbr?.replaceAll('^0*', ''), "0${sChgNbr?.replaceAll('^0*', '')}".toString(), "${degreeCodeMatch[0]} ${sChgSectionNumber}") : lChg;
                   
-                  cDefParty.collect("charges").each({eCharge -> logger("678: eCharge ${eCharge.chargeNumber} ${eCharge.description}")})
+                  ArrayList inputStatuteChoiceList = DomainObject.find(Ce_StatuteLanguageChoice.class, "choice", sChgSectionNumber, "odysseyDegree", sChgDegreeWord, "agency", "ODY").statute;
                   
-                  List<Charge> existinglChg = cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '') == #p1 && statute != null]", sChgNbr);
+                  inputStatuteChoiceList = inputStatuteChoiceList?.isEmpty() ? DomainObject.find(Ce_StatuteLanguageChoice.class, "choice", sChgSectionNumber, "odysseyDegree", degreeCodeMatch, "agency", "ODY"): inputStatuteChoiceList;
                   
-                  Charge cCharge = lChg != null && !lChg.isEmpty()? lChg.last() : new Charge();
-                  Timestamp today = Timestamp.valueOf(LocalDateTime.now())
-                  logger("677: lChg: ${lChg} ${lChg.statute}; cCharge: ${cCharge}; sChgSectionNumber: ${sChgSectionNumber}; degreeCodeMatch: ${degreeCodeMatch}; inputStatute: ${inputStatute}; sChgNbr: ${sChgNbr?.replaceAll('^0*', '')}")
-                  //if (cCharge.status != "LOCKED")
+                  ArrayList inputStatuteChoiceListInbound = DomainObject.find(Ce_StatuteLanguageChoice.class, "choice", sChgSectionNumber, "odysseyDegree", sChgDegreeWord, "agency", "ODY", "choiceType", "INBOUND").statute;
+                  
+                  List<Charge> lChg = cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '') == #p1 && statute != null && #p2.contains(statute)]", sChgNbr, inputStatuteChoiceList);
+                  
+                  lChg = lChg?.isEmpty() ? cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '') == #p1 && statute != null && #p2.contains(statute)]", sChgNbr, inputStatuteChoiceListInbound) : lChg;
+                  
+                  List<Charge> existinglChg = cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '') == #p1 && statute != null]", sChgNbr).findAll({charge -> Condition.get("Charge is Active and Type is not enhancement or violation").isTrue(charge)});
+                  
+                  Statute inputStatute = inputStatuteChoiceList.find({statute -> lChg.statute.contains(statute) || statute.id != null});
+                  
+                  lChg = lChg?.isEmpty() ? cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '') == #p1 && statute != null && statute.sectionNumber == #p2]", sChgNbr, sGenericStatuteSectionNbr) : lChg;
+                  
+                  Charge cCharge = !lChg?.isEmpty() ? lChg.find({charge -> Condition.get("Charge is Active and Type is not enhancement or violation").isTrue(charge) || charge.id != null}) : new Charge();
+                  
+                  logger("TEST:697:choice:${sChgSectionNumber}; odysseyDegree:${sChgDegreeWord}; ");
+                  logger("TEST:698:lChg:${lChg}; inputStatuteChoiceList:${inputStatuteChoiceList}; sChgDegreeWord:${sChgDegreeWord}; sChgNbr:${sChgNbr}");
+                  logger("TEST:700:inputStatuteChoiceListInbound:${inputStatuteChoiceListInbound}");
+                  if (cCharge == null || cCharge.id == null){
+                    if (!inputStatuteChoiceList?.isEmpty() || !inputStatuteChoiceListInbound.isEmpty()){
+                      logger("TEST:707:set statute, ${cCharge.statute}, for new charge, set DISAMEND status for current charges");
+                      cCharge.statute = inputStatuteChoiceList.find({it -> it.id != null});
+                      cCharge.statute = cCharge.statute == null ? inputStatuteChoiceListInbound.find({it -> it.id != null}) : cCharge.statute;
+                    } else {
+                      cCharge.statute = DomainObject.find(Statute.class, 'sectionNumber', sGenericStatuteSectionNbr).find({thisStatute -> thisStatute.id != null});
+                      cCharge.description = "${sChgDegree} ${sChgSectionNumber}".toString();
+                    }
+                    logger("TEST:710")
+                    if ((!existinglChg?.findAll({it -> it.chargeNumber == sChgNbr || it.chargeNumber == "0${sChgNbr}".toString()}).isEmpty() || cCharge.statute.sectionNumber  == sGenericStatuteSectionNbr) && !["P","R"].contains(xmlIPSluper.Case.CaseType.@Word.toString())){
+                      logger("TEST:712")
+                      disamendStatus = true;
+                      existinglChg.each({thisCharge ->
+                      List<Ce_chargeDisposition> disamends = DomainObject.find(Ce_chargeDisposition.class, "charge", thisCharge, "dispositionType", "DISAMEND");
+                        if (disamends.isEmpty()){
+                          Ce_chargeDisposition newChargeDisposition = new Ce_chargeDisposition();
+                          newChargeDisposition.dispositionType = "DISAMEND";
+                          newChargeDisposition.charge = thisCharge;
+                          thisCharge.add(newChargeDisposition, "ce_chargeDispositions");
+                          thisCharge.dispositionType = "DISAMEND";
+                          thisCharge.saveOrUpdate();
+                        }
+                      });
+                    }
+                  }
+                  
+                  Timestamp today = Timestamp.valueOf(LocalDateTime.now());
+                  
                   if (cCharge.status == "ACT" || cCharge.id == null)
 					if (cCharge.dispositionType != "DISAMEND"){
-					logger("678")
-                      if (!["P","R"].contains(xmlIPSluper.Case.CaseType.@Word.toString())){
-                   existinglChg.each({thisCharge -> 
-
-                     if(thisCharge.status == "ACT")
-                     if((cCharge.id == null || (cCharge.id !=null && cCharge.id != thisCharge.id)) && (thisCharge.chargeNumber?.replaceAll('^0*', '') == sChgNbr && (thisCharge.statute.cf_ofsWord != sChgSectionNumber || !thisCharge.statute.category.toString().startsWith(sChgDegree[0])) )){
-
-                      if(thisCharge.dispositionType != "DISAMEND"){
-
-                      Ce_chargeDisposition newChargeDisposition = new Ce_chargeDisposition();
-                      newChargeDisposition.dispositionType = "DISAMEND";
-                      newChargeDisposition.charge = thisCharge;
-                      newChargeDisposition.saveOrUpdate();
-                      thisCharge.add(newChargeDisposition, "ce_chargeDispositions");
-                      thisCharge.saveOrUpdate();
-                      }
-                    }
-                  });
-                    }       
-					// Add basic charge fields
-
-                    cCharge.description = "${sChgDegree} ${sChgSectionNumber}".toString();
+					logger("678");
+                    //cCharge.description = "${sChgDegree} ${sChgSectionNumber}".toString();
 					cCharge.chargeDate = convDateStrToDate((String) oChgObj?.ChargeOffenseDate?.text(), "MM/dd/yyyy");
 					cCharge.chargeNumber = sChgNbr.replaceAll('^0*', '');
 					cCharge.status = "ACT";
@@ -717,23 +748,10 @@ public class IntegrationPublisherInterface {
 					cCharge.stageAdded = "FILED";
                     cCharge.setAssociatedParty(cDefParty);
                     
-                    // ${sChgDegree}; sChgSectionNumber: ${sChgSectionNumber};  
-                    //String degreeCodeMatch = DomainObject.find(LookupItem.class, "lookupList.name", "ODY_DEGREE").find({thisItem -> thisItem.label.toLowerCase() == sChgDegree.toLowerCase() || thisItem.code == sChgDegree})?.code;
-                    //ArrayList inputStatuteChoiceList = DomainObject.find(Ce_StatuteLanguageChoice.class, "choice", sChgSectionNumber, "odysseyDegree", degreeCodeMatch);
-                    //Statute inputStatute = inputStatuteChoiceList.find({choice -> choice != null && choice.statute != null})?.statute;
-                      logger("717:cCharge.statute:${cCharge.statute}; inputStatute ${inputStatute}");
-                      if(cCharge.statute == null && inputStatute != null){
-                      cCharge.statute = inputStatute;
-                      } else if (cCharge.statute == null && inputStatute == null){
-                        cCharge.statute = DomainObject.find(Statute.class, 'sectionNumber', "9999").find({thisStatute -> thisStatute.id != null});
-                      }
-					/*cCharge.chargeType = oChgObj.ChargeHistory != null && oChgObj.ChargeHistory.getAt(0).Statute.Degree.@Word.toString() == "FEL" ? "F": null;
-                  	cCharge.chargeType = cCharge.chargeType == null && oChgObj.ChargeHistory.getAt(0).Statute.Degree.@Word.toString().startsWith("I") ? "I" : cCharge.chargeType;
-                  	cCharge.chargeType = cCharge.chargeType == null && oChgObj.ChargeHistory.getAt(0).Statute.Degree.@Word.toString().startsWith("M") ? "M" : cCharge.chargeType;
-                    cCharge.chargeType = xmlIPSluper.Case.CaseType.@Word.toString() == "P" ? "PAROLE" : cCharge.chargeType;
-                    cCharge.chargeType = xmlIPSluper.Case.CaseType.@Word.toString() == "R" ? "PRCS" : cCharge.chargeType;*/
-                    cCharge.status = cCharge.status != "LOCKED" && oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate != null && !oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate.isEmpty() ? "AMEND" : cCharge.status;
-                    cCharge.statusDate = oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate != null && !oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate.isEmpty() ? Date.parse('MM/dd/yyyy', oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate.text()) : cCharge.statusDate;
+                    cCharge.status = cCharge.status != "LOCKED" && oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate != null && !oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate?.isEmpty() ? "AMEND" : cCharge.status;
+                      
+                    cCharge.statusDate = oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate != null && !oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate?.isEmpty() ? Date.parse('MM/dd/yyyy', oChgObj.ChargeHistory.find({chistory -> !["P","R"].contains(ipCaseType) && chistory.@Stage == "Case Filing" || ["P","R"].contains(ipCaseType) && chistory.@Stage != null}).AmendedDate.text()) : cCharge.statusDate;
+                      
                     cCharge.saveOrUpdate();
 					// Check for underlying caseTypes and add UCN ChargeType if needed
 					String sUCNCaseType = (String) mOdyUnderlyingCaseTypes_.find { it.value == (String)xmlIPSluper.Case.CaseType.@Word; }?.key;
@@ -801,6 +819,9 @@ public class IntegrationPublisherInterface {
                           String degreeCode = DomainObject.find(LookupItem.class, "lookupList.name", "ODY_DEGREE").find({thisItem -> thisItem.label.toLowerCase() == sStatuteDegree.toLowerCase() || thisItem.code == sStatuteDegree})?.code; logger("782: ${DomainObject.find(LookupItem.class, "lookupList.name", "ODY_DEGREE").find({thisItem -> thisItem.label.toLowerCase() == sStatuteDegree.toLowerCase() || thisItem.code == sStatuteDegree})}");
                             ArrayList statuteChoiceList = DomainObject.find(Ce_StatuteLanguageChoice.class, "choice", sStatuteNumber, "odysseyDegree", degreeCode, "choiceType", "INBOUND");
                           Statute cSt = statuteChoiceList.find({choice -> choice != null && choice.statute != null})?.statute;
+                        
+                        logger("second statute match : statuteChoiceList");
+
                           logger("785 cSt: ${cSt}; choice: ${sStatuteNumber}; odysseyDegree:${sStatuteDegree} ${degreeCode}");
 							if (cSt == null || cSt.sectionNumber == sGenericStatuteSectionNbr) { // no statute?
 								logger("Statute not found, searching for generic sectionNbr($sGenericStatuteSectionNbr)");
@@ -881,7 +902,7 @@ public class IntegrationPublisherInterface {
 					logger("Published chargeID(${oChgObj?.@'ID'}) has no valid chargeNumber, charge skipped");
 
 			} // charges
-
+          }
             // ----------------- Add charge sentences
 
 			// There will a new sentence added for each CAConfinementComponent / CAProbationComponent / ConditionComponent/Fees.
@@ -916,7 +937,7 @@ public class IntegrationPublisherInterface {
 					String sChgNbr= (String)oSentEvent.Sentence.SentenceCharge.ChargeNumber?.text()?.replaceAll("^0*", "");
 					logger("Searching for charge#($sChgNbr) to assign sentence events");
                     RichList matchingPartyCharges = cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '')==#p1]", sChgNbr);
-					Charge cCharge = matchingPartyCharges != null && !matchingPartyCharges.isEmpty() ? cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '')==#p1]", sChgNbr).last(): null;
+					Charge cCharge = matchingPartyCharges != null && !matchingPartyCharges?.isEmpty() ? cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '')==#p1]", sChgNbr).last(): null;
 					if (cCharge != null) { // valid charge?
 						logger("Found charge#($sChgNbr) for sentencing events");
 
@@ -961,7 +982,7 @@ public class IntegrationPublisherInterface {
 					String sChgNbr= (String)oSentEvent.Sentence.SentenceCharge.ChargeNumber?.text()?.replaceAll("^0*", "");
 					logger("Searching for charge#($sChgNbr) to assign sentence events");
                     RichList matchingPartyCharges = cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '')==#p1]", sChgNbr);
-					Charge cCharge = matchingPartyCharges != null && !matchingPartyCharges.isEmpty() ? (Charge) matchingPartyCharges.last(): null;
+					Charge cCharge = matchingPartyCharges != null && !matchingPartyCharges?.isEmpty() ? (Charge) matchingPartyCharges.last(): null;
 					if (cCharge != null) { // valid charge?
 						logger("Found charge#($sChgNbr) for sentencing events");
 
@@ -1008,7 +1029,7 @@ public class IntegrationPublisherInterface {
                         // Create/Update charge disposition if valid charge number
                         if( !StringUtil.isNullOrEmpty(sChgNbr) ) {
                             RichList matchingPartyCharges = cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '')==#p1]", sChgNbr);
-                            Charge cChg= matchingPartyCharges != null && !matchingPartyCharges.isEmpty() ? (Charge) matchingPartyCharges.last(): null; // get charge involved
+                            Charge cChg= matchingPartyCharges != null && !matchingPartyCharges?.isEmpty() ? (Charge) matchingPartyCharges.last(): null; // get charge involved
                             if( cChg ) { // valid charge?
                                 List<Ce_chargeDisposition> lChgDispo = cChg.collect("ce_chargeDispositions[dispositionType==#p1 and dispositionDate==#p2]", sDispoType, dDispEventDate);
                                 Ce_chargeDisposition cChgDispo = lChgDispo.last() ?: new Ce_chargeDisposition();  // if null create new object
@@ -1067,7 +1088,7 @@ public class IntegrationPublisherInterface {
                         // Create/Update charge plea if valid charge number
                         if (!StringUtil.isNullOrEmpty(sChgNbr)) {
                             RichList matchingPartyCharges = cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '')==#p1]", sChgNbr);
-                            Charge cChg = matchingPartyCharges != null && !matchingPartyCharges.isEmpty() ?  cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '')==#p1]", sChgNbr).last(): null;
+                            Charge cChg = matchingPartyCharges != null && !matchingPartyCharges?.isEmpty() ?  cDefParty.collect("charges[chargeNumber?.replaceAll('^0*', '')==#p1]", sChgNbr).last(): null;
                             // get charge involved
                             if (cChg) { // valid charge?
                                 List<Plea> lChgPlea = cChg.collect("pleas[pleaType==#p1 and pleaDate==#p2]", sPleaType, dPleaEventDate);
@@ -1126,6 +1147,7 @@ public class IntegrationPublisherInterface {
 									logger("Adding atty[$sAttyType] Ce_Participant rep (${cAttyPerson.firstName}, ${cAttyPerson.lastName}) to case");
 									cParticipant= new Ce_Participant();
 									cParticipant.type= "REP";
+                                    cParticipant.subType= "FIRM";
 									cParticipant.person= cAttyPerson;
 									cParticipant.case= cCase;
 									cCase.ce_Participants.add(cParticipant);
@@ -1174,8 +1196,8 @@ public class IntegrationPublisherInterface {
 								// Save participant information
 								cParticipant.saveOrUpdate();
 
-							} else
-								this.aErrorList_.add(new ValidationError(false, cCase.caseNumber, fFilePath.getName(), logger("Unable to find an ePros [${xmlIPSluper.Case.CaseParty[cp].CasePartyAttorney[cpa].Connection.@Word}] person using AttyID(${xmlIPSluper.Case.CaseParty[cp].CasePartyAttorney[cpa].@'ID'}), check xml Bar# or CasePartyName")));
+							} /*else
+								this.aErrorList_.add(new ValidationError(false, cCase.caseNumber, fFilePath.getName(), logger("Unable to find an ePros [${xmlIPSluper.Case.CaseParty[cp].CasePartyAttorney[cpa].Connection.@Word}] person using AttyID(${xmlIPSluper.Case.CaseParty[cp].CasePartyAttorney[cpa].@'ID'}), check xml Bar# or CasePartyName")));*/
 						}
 					}
 				}
@@ -1225,8 +1247,9 @@ public class IntegrationPublisherInterface {
 								logger "No hearing 'LOC' code found in CourtResource section";
 
 							// Add/Update schedule hearing information
-							lSchEvent = cCase.collect("hearings[type==#p1 and startDateTime==#p2]", sSchEventType, dStartDateTime );
-							cSchEvent = lSchEvent.last() ?: new ScheduledEvent();	// if null create new object
+                          logger("1237:ScheduledEvent lookup: type: ${sSchEventType}; startDateTime: ${dStartDateTime}");
+							lSchEvent = dStartDateTime != null ? cCase.collect("hearings[type==#p1 and startDateTime==#p2]", sSchEventType, dStartDateTime ) : new RichList();
+							cSchEvent = !lSchEvent?.isEmpty() && lSchEvent?.last() != null ? lSchEvent.last() : new ScheduledEvent();	// if null create new object
                           if (cSchEvent.case == null){
                             cCase.add(cSchEvent, "hearings");
                             cCase.saveOrUpdate();
@@ -1319,7 +1342,7 @@ public class IntegrationPublisherInterface {
                               
                               List<EventResult> lEvtRslt = cSchEvent.collect("eventResults[eventResultType == #p1 && cf_ipFileCaseTitle == #p2]", (String) oHearingResult.HearingResult?.@Word, cDefParty.person.fullName);
 
-								EventResult cEvtRslt = lEvtRslt != null && !lEvtRslt.isEmpty() ? lEvtRslt.last(): new EventResult();	// if null create new object
+								EventResult cEvtRslt = lEvtRslt != null && !lEvtRslt?.isEmpty() ? lEvtRslt.last(): new EventResult();	// if null create new object
 								logger(((lEvtRslt == null || lEvtRslt.isEmpty()) ? "Adding new" : "Updating existing") + " hearing result [${oHearingResult.HearingResult.text()}]");
 								if (validateLookupCode((String) oHearingResult.HearingResult?.@Word, "EVENT_RESULT") == null)
 									this.aErrorList_.add(new ValidationError(false, cCase.caseNumber, fFilePath.getName(), logger("Hearing result type (${oHearingResult.HearingResult?.@Word}) not found in [EVENT_RESULT] lookupList")));
@@ -1400,7 +1423,7 @@ public class IntegrationPublisherInterface {
 						String sSchEventType = oParentHearing.HearingType.@Word;
 
 						logger("Parent hearing found, searching ePros for existing sameDay ($dHearingDate) hearing - [$sSchEventType]");
-						cSchEvent = cCase.collect("hearings[type==#p1]", sSchEventType).find{ d ->
+						cSchEvent = cCase.collect("hearings[type==#p1 && startDateTime != null]", sSchEventType).find{ d ->
 										DateUtils.isSameDay(d.startDateTime,dHearingDate);
 									}
 					}
@@ -1436,7 +1459,7 @@ public class IntegrationPublisherInterface {
 						//List<EventResult> lEventResult = cSchEvent.collect("eventResults[eventResultDate == #p1 && memo == #p2]", dCaseEventDate, cDefParty.person.fullName);
                         //List<EventResult> lEventResult = cSchEvent.collect("eventResults[eventResultDate != null && eventResultDate.after(#p1) && eventResultDate.before(#p2)]", dCaseEventDateBegin, dCaseEventDateEnd);
                       	List<EventResult> lEventResult = cSchEvent.collect("eventResults[cf_ipFileCaseTitle == #p1]", cDefParty.person.fullName);
-						EventResult cEventResult = lEventResult != null && !lEventResult.isEmpty() ? lEventResult.last(): new EventResult();	// if null create new object
+						EventResult cEventResult = lEventResult != null && !lEventResult?.isEmpty() ? lEventResult.last(): new EventResult();	// if null create new object
 						logger(((lEventResult == null || lEventResult.isEmpty()) ? "Adding new" : "Updating existing") + " hearingType [${cSchEvent.type}]");
 						// Add unique caseEvent result memo based on EventType + Comment
 						StringJoiner sResultMemo = new StringJoiner(" | ");
@@ -1566,8 +1589,8 @@ public class IntegrationPublisherInterface {
                 if (oSentEvent.Sentence.Additional.ConditionComponent.Condition.size()){
                     Sentence cSent = null;
 					//List<Sentence> lSent = cChg.collect("sentences[(sentenceType==#p1 and sentenceDate==#p2) and cf_sentenceOption==null and supervisionType==null]", mChgSentHdr.type, mChgSentHdr.date);
-                  	List<Sentence> lSent = cChg.collect("sentences[!conditions.isEmpty() && status == 'COND']");
-                  	//lSent = lSent.isEmpty() ? cChg.collect("sentences[status == 'CONF']") : lSent;
+                  	List<Sentence> lSent = cChg.collect("sentences[!conditions?.isEmpty() && status == 'COND']");
+                  	//lSent = lSent?.isEmpty() ? cChg.collect("sentences[status == 'CONF']") : lSent;
 					cSent = lSent.last() ?: new Sentence(); logger("new Sentence: 1565:");
 					logger(((!lSent) ? "Adding new" : "Updating existing") + " sentence for conditionComponents + fees if needed");
 
@@ -1626,9 +1649,9 @@ public class IntegrationPublisherInterface {
                 if (oSentEvent.Sentence.Additional.Fees.size()){
 					for (int f = 0; f < oSentEvent.Sentence.Additional.Fees.size(); f++) {
                       Sentence cSent1 = null;
-                      //List<Sentence> lSent1 = cChg.collect("sentences[!feeSchedules.isEmpty() && status == 'FEES']");
+                      //List<Sentence> lSent1 = cChg.collect("sentences[!feeSchedules?.isEmpty() && status == 'FEES']");
                       ArrayList lSent1 = DomainObject.find(Sentence.class, "associatedCharge.id", cChg.id, "status", "FEES", "sentenceType", mChgSentHdr.type);
-                      cSent1 = !lSent1.isEmpty() ? lSent1.find({thisSentence -> thisSentence != null}) : new Sentence(); logger("new Sentence: 1625:");
+                      cSent1 = !lSent1?.isEmpty() ? lSent1.find({thisSentence -> thisSentence != null}) : new Sentence(); logger("new Sentence: 1625:");
                     cSent1.status = "FEES";
 					cSent1.sentenceType = mChgSentHdr.type;
 					cSent1.sentenceDate = mChgSentHdr.date;
@@ -1654,8 +1677,8 @@ public class IntegrationPublisherInterface {
   							if (it == '.' || it.matches("\\d")){feeAmountString += it}
 							});
                             feeAmountDouble = Double.parseDouble(feeAmountString);
-                            lSentEvtFee = lSentEvtFee == null || lSentEvtFee.isEmpty() ? cSent1.collect("feeSchedules[feeAmountCents == #p1]", feeAmountDouble) : lSentEvtFee;
-                            //lSentEvtFee = lSentEvtFee == null || lSentEvtFee.isEmpty() ? DomainObject.find(Ce_FeeSchedule.class, "sentence.id", cSent.id, "feeAmountCents", feeAmountDouble) : lSentEvtFee;
+                            lSentEvtFee = lSentEvtFee == null || lSentEvtFee?.isEmpty() ? cSent1.collect("feeSchedules[feeAmountCents == #p1]", feeAmountDouble) : lSentEvtFee;
+                            //lSentEvtFee = lSentEvtFee == null || lSentEvtFee?.isEmpty() ? DomainObject.find(Ce_FeeSchedule.class, "sentence.id", cSent.id, "feeAmountCents", feeAmountDouble) : lSentEvtFee;
                             Ce_FeeSchedule cSentEvtFee = lSentEvtFee.last() ?: new Ce_FeeSchedule();
                             cSentEvtFee.feeType = sFeeSentType;
                             cSentEvtFee.feeAmountCents = feeAmountDouble; //usdToCents(oFeeSch.FeeAmount?.text());
@@ -1698,13 +1721,13 @@ public class IntegrationPublisherInterface {
     public Party addCAConfinementComponent( Charge cChg, Party cDefParty, Object oSentEvent, Map mChgSentHdr ) {
 
         try {
-            logger("<b>Search for CAConfinementComponents to insert</b>");
+          logger("<b>Search for CAConfinementComponents to insert; 1:cChg:${cChg}; 2:cDefParty:${cDefParty}; 3:oSentEvent:${oSentEvent}; 4:mChgSentHdr:${mChgSentHdr}</b>");
             if ( cChg != null ) { // valid charge?
-
+ logger("addCAConfinementComponent:1");
                 // Add/Update CAConfinementComponent sentence
                 for (int sc = 0; sc < oSentEvent.Sentence.Additional.CAConfinementComponent.size(); sc++) {
                     Object oConfSection = oSentEvent.Sentence.Additional.CAConfinementComponent[sc]; // set pointer to tag element
-
+logger("addCAConfinementComponent:2");
                     // Validate confinement component types
 					String sSentenceOpt= (String)oConfSection.Type.@Word;
                     if (validateLookupCode(sSentenceOpt, "SENTENCE_OPTION") == null)
@@ -1742,7 +1765,7 @@ public class IntegrationPublisherInterface {
                     cSentEvtConf.cf_concurrentComment = oConfSection.ConcurrentComment.text();
                     cSentEvtConf.cf_consecutiveWith = oConfSection.ConsecutiveWith.text()?.toBoolean();
                     cSentEvtConf.cf_consecutiveComment = oConfSection.ConsecutiveComment.text();
-                  
+                  logger("addCAConfinementComponent:3");
                   
                     // Validate confinement term type
                     cSentEvtConf.cf_confinementTermType = sTermTypeCode;
@@ -1758,7 +1781,7 @@ public class IntegrationPublisherInterface {
                         cSentEvtConf.cf_sentenceStayedMonths = oConfSection.StayedDuration.Months.text()?.replaceAll("[^0-9.]", "").toDouble();
                     if (!StringUtil.isNullOrEmpty(oConfSection.StayedDuration.Days.text()))
                         cSentEvtConf.cf_sentenceStayedDays = oConfSection.StayedDuration.Days.text()?.replaceAll("[^0-9.]", "").toDouble();
-
+logger("addCAConfinementComponent:4");
                     //Suspended Duration
                     if (!StringUtil.isNullOrEmpty(oConfSection.SuspendedDuration.Years.text()))
                         cSentEvtConf.cf_sentenceStayedYears = oConfSection.SuspendedDuration.Years.text()?.replaceAll("[^0-9.]", "").toDouble();
@@ -1781,13 +1804,16 @@ public class IntegrationPublisherInterface {
 					else if (oConfSection.UntilAge25.text().toBoolean())
                         cSentEvtConf.cf_confinementOption = "TO25";
 				    cSentEvtConf.cf_FineLieuJailTime = oConfSection.PayFineInLieuOfJailTime.text()?.toBoolean();
-
+logger("addCAConfinementComponent:5");
                     if ( !StringUtil.isNullOrEmpty(oConfSection.FineSuspendedAmount.text())
 						 && oConfSection.FineSuspendedAmount.text()	!= 'false' ) {
-						cSentEvtConf.cf_suspendedFineFeeCents = usdToCents(oConfSection.FineSuspendedAmount.text());
+                      logger("addCAConfinementComponent:51;oConfSection.FineSuspendedAmount.text():${oConfSection.FineSuspendedAmountValue.text()}");
+						cSentEvtConf.cf_suspendedFineFeeCents = usdToCents(oConfSection.FineSuspendedAmountValue.text());
+                      logger("addCAConfinementComponent:52");
 					}
+                  logger("addCAConfinementComponent:53");
                     cSentEvtConf.setAssociatedCharge(cChg);
-
+logger("addCAConfinementComponent:6");
                     // Add new CAConfinementComponent to sentences
                     if (lSentEvtConf.empty)   // new entry
                         cChg.sentences.add(cSentEvtConf);
@@ -1797,6 +1823,7 @@ public class IntegrationPublisherInterface {
                 logger("No valid CAConfinementComponents sentence charge found");
 
         } catch (Exception ex) {
+          //logger("Exception::addCAConfinementComponent: ${ex.getMessage()}");
             logger iTracking_.setException(ex.message, "Exception::addCAConfinementComponent - insert error");
             iTracking_.updateResult(iTracking_.RESULT_FAIL_EXCEPTION_);
         }
@@ -1813,7 +1840,7 @@ public class IntegrationPublisherInterface {
           logger("1805: ProgramType: ${oSentEvent.Sentence.Additional.CAProgramsComponent.Programs.Program[sc].ProgramType.@Word}")
           Object oProgramComponent = oSentEvent.Sentence.Additional.CAProgramsComponent.Programs.Program[sc];
           ArrayList programComponents = DomainObject.find(Sentence.class, "associatedCharge.id", cChg.id, "status", "PROG", "sentenceType", "SENT");
-          Sentence programComponent = !programComponents.isEmpty() ? programComponents.last() : new Sentence(); logger("new Sentence: 1810:");
+          Sentence programComponent = !programComponents?.isEmpty() ? programComponents.last() : new Sentence(); logger("new Sentence: 1810:");
           programComponent.associatedCharge = cChg;
           programComponent.status = "PROG";
           programComponent.sentenceType = mChgSentHdr.type; //"SENT";
@@ -1831,10 +1858,10 @@ public class IntegrationPublisherInterface {
             //programComponentConditions = programComponent.collect("conditions[sentenceConditionBeginDate == #p1 && sentenceConditionType == #p2]", programDate, programType).orderBy("id");
             programComponentConditions = DomainObject.find(SentenceCondition.class, "associatedSentence", programComponent.id, "sentenceConditionBeginDate", programDate, "sentenceConditionType", programType); logger("1823:");
           }
-          //programComponentConditions.isEmpty() ?  DomainObject.find(SentenceCondition.class, "associatedSentence", programComponent, "sentenceConditionType", programType.toString(), "message", programComment.toString(), "status", "ACT", "statusDate", programDate) : programComponentConditions;
+          //programComponentConditions?.isEmpty() ?  DomainObject.find(SentenceCondition.class, "associatedSentence", programComponent, "sentenceConditionType", programType.toString(), "message", programComment.toString(), "status", "ACT", "statusDate", programDate) : programComponentConditions;
           logger("1826: associatedSentence: ${programComponent}")
-          programComponentConditions.isEmpty() ?  DomainObject.find(SentenceCondition.class, "associatedSentence", programComponent, "status", "ACT", "statusDate", programDate) : programComponentConditions; logger("1827:");
-          SentenceCondition programSentenceCondition = !programComponentConditions.isEmpty() ? programComponentConditions.find({thisCompCond -> thisCompCond.sentenceConditionType == programType.toString() && thisCompCond.message == programComment.toString()}) : new SentenceCondition();
+          programComponentConditions?.isEmpty() ?  DomainObject.find(SentenceCondition.class, "associatedSentence", programComponent, "status", "ACT", "statusDate", programDate) : programComponentConditions; logger("1827:");
+          SentenceCondition programSentenceCondition = !programComponentConditions?.isEmpty() ? programComponentConditions.find({thisCompCond -> thisCompCond.sentenceConditionType == programType.toString() && thisCompCond.message == programComment.toString()}) : new SentenceCondition();
           logger("1829: new sentence condition? ${programSentenceCondition.id}; programType: ${programSentenceCondition.sentenceConditionType}")
           //programSentenceCondition.memo = programComment;
           programSentenceCondition.message = "${programComment}"; //${programTypeText}
@@ -1865,7 +1892,7 @@ public class IntegrationPublisherInterface {
                 for (int sc = 0; sc < oSentEvent.Sentence.Additional.ConvertedDispositionComponent.size(); sc++) {
                     Object oConvertedDispositionComponent = oSentEvent.Sentence.Additional.ConvertedDispositionComponent[sc];
                   	ArrayList commentSentences = DomainObject.find(Sentence.class, "associatedCharge.id", cChg.id, "status", "CONVDISPO");
-					Sentence cSentComment = !commentSentences.isEmpty() ? commentSentences.last() : new Sentence(); logger("new Sentence: 1862:");
+					Sentence cSentComment = !commentSentences?.isEmpty() ? commentSentences.last() : new Sentence(); logger("new Sentence: 1862:");
                   	cSentComment.associatedCharge = cChg;
                   	cSentComment.status = "CONVDISPO";
                     cSentComment.sentenceType = mChgSentHdr.type;
@@ -1902,7 +1929,7 @@ public class IntegrationPublisherInterface {
                 for (int sc = 0; sc < oSentEvent.Sentence.Additional.CommentComponent.size(); sc++) {
                     Object oCommentComponent = oSentEvent.Sentence.Additional.CommentComponent[sc];
                   	ArrayList commentSentences = DomainObject.find(Sentence.class, "associatedCharge.id", cChg.id, "status", "COM", "sentenceDate", mChgSentHdr.date, "sentenceType", mChgSentHdr.type);
-					Sentence cSentComment = !commentSentences.isEmpty() ? commentSentences.last() : new Sentence(); logger("new Sentence: 1899:");
+					Sentence cSentComment = !commentSentences?.isEmpty() ? commentSentences.last() : new Sentence(); logger("new Sentence: 1899:");
                   	cSentComment.associatedCharge = cChg;
                   	cSentComment.status = "COM";
                     cSentComment.sentenceType = mChgSentHdr.type;
@@ -1912,7 +1939,7 @@ public class IntegrationPublisherInterface {
                     ArrayList sentenceMethodsArrayList = DomainObject.find(SentenceMethod.class, "sentence", cSentComment, "sentenceMethodType", "COM", "memo", oCommentComponent.Comment.text());
                   
                   if (oCommentComponent.Comment.text() != null || !oCommentComponent.Comment.text().trim().isEmpty()){
-                  	SentenceMethod sentenceMethod = !sentenceMethodsArrayList.isEmpty() ? sentenceMethodsArrayList.last(): new SentenceMethod();
+                  	SentenceMethod sentenceMethod = !sentenceMethodsArrayList?.isEmpty() ? sentenceMethodsArrayList.last(): new SentenceMethod();
 					sentenceMethod.sentenceMethodType = "COM";
 					sentenceMethod.memo = oCommentComponent.Comment.text();
 					sentenceMethod.sentence = cSentComment;
@@ -1996,7 +2023,7 @@ public class IntegrationPublisherInterface {
 							List<SentenceMethod> lSentDispoStat = cSentEvtProb.collect("sentenceMethods[sentenceMethodType == 'DISPO' && status == #p1 && statusDate == #p2]", sDispoStatId, dDispoStatusDate);
                           ArrayList lSentDispoStatArrayList = DomainObject.find(SentenceMethod.class, "sentence", cSentEvtProb, "sentenceMethodType", "DISPO", "status", sDispoStatId, "statusDate", dDispoStatusDate)
 							//SentenceMethod cSentDispoStat = lSentDispoStat.last() ?: new SentenceMethod(); // if null create new object
-                          SentenceMethod cSentDispoStat = !lSentDispoStatArrayList.isEmpty() ? lSentDispoStatArrayList.last(): new SentenceMethod();
+                          SentenceMethod cSentDispoStat = !lSentDispoStatArrayList?.isEmpty() ? lSentDispoStatArrayList.last(): new SentenceMethod();
 							logger(((lSentDispoStatArrayList.empty) ? "Adding new" : "Updating existing") + " probation dispo status component");
 							cSentDispoStat.sentenceMethodType = 'DISPO';
 							cSentDispoStat.status = sDispoStatId;
@@ -2284,7 +2311,7 @@ public class IntegrationPublisherInterface {
 							// Update person entity w/ new person reference
 							cPerson.saveOrUpdate();
 						} else
-							logger("Attorney person cannot be added, invalid Bar# or lastName");
+							logger("Attorney person cannot be added, no matching Bar# or lastName");
 
 						// No valid person and no CasePartyName tag, create person based on organizationName
 					} else if( cPerson == null && !xmlIPSluper.Case.Attorney[x].CasePartyName ) { // valid tag?
@@ -3206,7 +3233,7 @@ class PersonNameObj {
 
 	// Test for valid first/last name
 	public boolean isValid() {
-		return ((firstName.trim().length() > 0 || lastName.trim().length() > 0 ));
+		return ((firstName?.trim()?.length() > 0 || lastName?.trim()?.length() > 0 ));
 	}
 }
 

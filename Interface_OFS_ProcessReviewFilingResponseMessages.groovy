@@ -450,13 +450,18 @@ logger("392:");
                   }catch (Exception exception){
                     logger("${exception.getMessage()}");
                   }
-                  if (newCourtNumber?.isEmpty()){
-					List<OtherCaseNumber> lOthCasNbr = cCase.collect("otherCaseNumbers[type == 'CRT' && (memo == null || memo == #p1 || memo.isEmpty() ) && (updateReason == null || updateReason != #p2)]", "${cJSluper.rfResponse.filingCaseTitleText}", "CRTComment");
+                  logger("TEST:Condition:453; 1:${cJSluper.rfResponse.caseDocketId.startsWith("NYF")} 2:${cJSluper.rfResponse.filingReviewCommentsText != null}; newCourtNumber:${newCourtNumber}");
+                  //if (newCourtNumber?.isEmpty()){
+					List<OtherCaseNumber> lOthCasNbr = cCase.collect("otherCaseNumbers[(type == 'CRT' || type == 'NYF') && (memo != null && memo == #p1) && (updateReason == null || updateReason != #p2)]", "${cJSluper.rfResponse.filingCaseTitleText}", "CRTComment");
+                  
+                  lOthCasNbr = lOthCasNbr.isEmpty() ? cCase.collect("otherCaseNumbers[(type == 'CRT' || type == 'NYF') && (memo == null || memo.isEmpty() ) && (updateReason == null || updateReason != #p1)]", "CRTComment") : lOthCasNbr;
+                  
+                  logger("TEST:CourtNumber:456: lOthCasNbr:${lOthCasNbr}");
 					OtherCaseNumber cOthCasNbr = !lOthCasNbr?.isEmpty() ? lOthCasNbr.last() : new OtherCaseNumber();
                     logger("Add or Update CRT Number");
 					// Add other case attributes
                     cOthCasNbr.memo = cOthCasNbr.memo == null || cOthCasNbr.memo?.trim()?.isEmpty() ? "${cJSluper.rfResponse.filingCaseTitleText}" : cOthCasNbr.memo;
-					cOthCasNbr.type = 'CRT';
+					cOthCasNbr.type = cJSluper.rfResponse.caseDocketId.startsWith("NYF") ? "NYF" : "CRT";
 					cOthCasNbr.cf_OFSCaseTrackingID = cJSluper.rfResponse.caseTrackingId;
 					cOthCasNbr.case = cCase;
 					if ( !StringUtil.isNullOrEmpty(cJSluper.rfResponse.caseDocketId) && cOthCasNbr.updateReason != "CRTComment") // valid court#?
@@ -469,7 +474,7 @@ logger("392:");
 
 					logger(((lOthCasNbr.empty)?"Adding":"Updating") + " Case.OtherCaseNumber w/ caseDocketId(${cJSluper.rfResponse.caseDocketId}) and caseTrackingId(${cJSluper.rfResponse.caseTrackingId})");
 					cCase.saveOrUpdate();    // commit it
-                  }
+                 // }
 				} else
 					this.aESuiteErrorList_.add(new eSuiteError(false, cCase.caseNumber, logger("No caseTrackingId found in review notification response message")));
 
@@ -500,8 +505,15 @@ logger("392:");
                 cDocStat.cf_OdysseyFilingDataComments = "${cJSluper.rfResponse.filingReviewCommentsText}".toString();
                 cDocStat.cf_OdysseyFilingData4 = "${cJSluper.rfResponse.documentReviewerGivenName} ${cJSluper.rfResponse.documentReviewerSurName}".toString();
                 //cDocStat.cf_OdysseyFilingData5 = cJSluper.rfResponse.authenticatedFilingUser != null ? "${cJSluper.rfResponse.authenticatedFilingUser}".toString() : null;
+              
+              //cDocStat.cf_OdysseyCaseList = "${cJSluper.rfResponse.caseListResponse}".toString();
+              
+              
                 cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle?.trim()?.isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
 				cDocStat.statusType = sStatusCode;
+              if (cDocStat.statusType == "OFSSUB"){
+                throw new Exception("DocumentStatus can't be OFSSUB when processing filing response");
+              }
 				cDocStat.document= cFilingDoc;
                 //cDocStat.cf_OdysseyFilingDocId = cDocStat.cf_OdysseyFilingDocId == null || cDocStat.cf_OdysseyFilingDocId.isEmpty() ? cJSluper.rfResponse.caseFilingId : cDocStat.cf_OdysseyFilingDocId ;
               cDocStat.cf_OdysseyFilingDocId = cJSluper.rfResponse.caseFilingId;
@@ -515,6 +527,7 @@ if (cJSluper.rfResponse.caseDocketId.startsWith("NYF") && filingReviewCommentsTe
   ArrayList newCourtNumberIssuedList2 = DomainObject.find(OtherCaseNumber.class, "case.id", cCase.id, "number", newCourtNumber, "memo", cJSluper.rfResponse.filingCaseTitleText, "type", "CRT");
   logger("503: " + DomainObject.find(OtherCaseNumber.class, "case.id", cCase.id, "number", newCourtNumber, "memo", cJSluper.rfResponse.filingCaseTitleText, "type", "CRT"));
   logger("504: newCourtNumber:${newCourtNumber};memo:${cJSluper.rfResponse.filingCaseTitleText}");
+  logger("TEST:CourtNumber:519");
 					OtherCaseNumber newCourtNumberIssued = newCourtNumberIssuedList2 != null && !newCourtNumberIssuedList2?.isEmpty() ? newCourtNumberIssuedList2.last() : new OtherCaseNumber();
                     newCourtNumberIssued.case = cCase;
                     newCourtNumberIssued.type = "CRT";
@@ -571,8 +584,9 @@ if (cJSluper.rfResponse.caseDocketId.startsWith("NYF") && filingReviewCommentsTe
               boolean bIsNewDocStatus = false; 
 				DocumentStatus cDocStat = getLatestDocumentStatus(cFilingDoc, (String)mDocStatus_.ofsRecv, cJSluper.rfResponse.caseFilingId);
               logger("525: cDocStat:${cDocStat}; cJSluper.rfResponse: ${cJSluper.rfResponse.caseFilingId}");
+              
 				if( cDocStat == null ) {
-					logger("527:Adding new documentStatus, statusType(${mDocStatus_.ofsSubmit}) not found");
+					logger("527:cDocStat:Adding new documentStatus, statusType(${mDocStatus_.ofsSubmit}) not found");
 					cDocStat = new DocumentStatus();
 					bIsNewDocStatus= true;
 				}
@@ -580,7 +594,9 @@ if (cJSluper.rfResponse.caseDocketId.startsWith("NYF") && filingReviewCommentsTe
 				// Update document status attributes on successful transactions
 				if( sStatusErrorCode == '0' && StringUtil.isNullOrEmpty(cJSluper.rfResponse.exception) ) {  // EFM errors/exceptions?
 					cDocStat.statusType = mDocStatus_.ofsRecv;   // set received by court
-
+              if (cDocStat.statusType == "OFSSUB"){
+                throw new Exception("DocumentStatus can't be OFSSUB when processing filing response");
+              }
 					// Test for correct organization ID (Only valid if not EFM errors)
 					logger("Validating organizationId - ${cJSluper.rfResponse.organizationId}");
 					if (cJSluper.rfResponse.organizationId != ORGANIZATION_ID_)
@@ -596,6 +612,27 @@ if (cJSluper.rfResponse.caseDocketId.startsWith("NYF") && filingReviewCommentsTe
                     logger("cFilingDoc.cf_OdysseyFilingDocId:${cFilingDoc.cf_OdysseyFilingDocId}; cDocStat.cf_OdysseyFilingDocId:${cDocStat.cf_OdysseyFilingDocId}; cJSluper.rfResponse.caseFilingId:${cJSluper.rfResponse.caseFilingId}");
                     cDocStat.memo = "${cJSluper.rfResponse.filingStatusText}".toString();
                     cDocStat.cf_OdysseyFilingEnvelope = "${cJSluper.rfResponse.filingEnvelopeId}".toString();
+                    
+                    // Updated fields return getCaseList response
+                    cDocStat.cf_OdysseyCaseList = "${cJSluper.rfResponse.caseListResponse}".toString();
+                    logger("getCaseList:0");
+                    //logger("condition: arg1:${cJSluper.rfResponse.caseListResponse.size() == 1} ; arg2:${cDocStat.cf_caseTrackingID == null} ; arg3:${cDocStat.cf_caseTrackingID?.isEmpty()}")
+                    if (cJSluper.rfResponse.caseListResponse.size() == 1 && (cDocStat.cf_caseTrackingID == null || cDocStat.cf_caseTrackingID?.isEmpty())){
+                      logger("getCaseList:1");
+                      //logger("caseTrackingID: " + cJSluper.rfResponse.caseListResponse?.find({ it -> it.caseTrackingID != null})?.caseTrackingID);
+                      //logger("caseTitleText: " + cJSluper.rfResponse.caseListResponse?.find({ it -> it.caseTitleText != null})?.caseTitleText);
+                      cDocStat.cf_caseTrackingID = cJSluper.rfResponse.caseListResponse?.find({ it -> it.caseTrackingID != null})?.caseTrackingID;
+                      
+                      if (cJSluper.rfResponse.filingDefendantFullName != null){
+                        logger("getCaseList:2");
+                        logger("cParty: " + cCase.collect("parties[!charges.isEmpty() && #p1.contains(person.fullName)]", cJSluper.rfResponse.filingDefendantFullName)?.find({it -> it != null}));
+                      Party cParty = cCase.collect("parties[!charges.isEmpty() && #p1.contains(person.fullName)]", cJSluper.rfResponse.filingDefendantFullName?.trim())?.find({it -> it != null});
+                      cParty.cf_caseTrackingID = cDocStat.cf_caseTrackingID;
+                      cParty.saveOrUpdate();
+                        logger("getCaseList:3");
+                      }
+                    }
+                    
                     cDocStat.sourceCaseNumber = "${cJSluper.rfResponse.filingDefendantFullName}".toString();
                     cDocStat.cf_OdysseyFilingCaseTitle = cDocStat.cf_OdysseyFilingCaseTitle == null || cDocStat.cf_OdysseyFilingCaseTitle?.trim()?.isEmpty() ?  "${cJSluper.rfResponse.filingCaseTitleText}" : cDocStat.cf_OdysseyFilingCaseTitle;
                     

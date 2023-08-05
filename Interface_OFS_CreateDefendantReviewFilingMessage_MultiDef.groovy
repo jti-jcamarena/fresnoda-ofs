@@ -55,7 +55,7 @@
  *  @input: _submitStaticAttorney - Class:Boolean - true
  *	@output _eResult - Class:String (CtInterfaceTracking.result)
  */
-
+import org.apache.commons.lang3.StringUtils;
 import com.hazelcast.util.StringUtil;
 import com.sustain.cases.model.*;
 
@@ -116,9 +116,13 @@ filingParties.addAll(_docStatus.document.collect("xrefs[refType == 'DOCREL' && e
 if (filingParties.isEmpty()){
   filingParties.add(_docStatus.document.case.collect("parties[partyType == 'DEF' && status == 'ACT']").orderBy("id").first());
 }
+
+/*
 for (filingParty in filingParties){
 	new CreateDefPtyReviewFilingInterface(this).exec(filingParty);
 }
+*/
+new CreateDefPtyReviewFilingInterface(this).exec(filingParties.find({it -> it.id != null}));
 
 /** ------------------------------------------------------------------------------------
  * Interface Tracking class
@@ -381,10 +385,23 @@ public class CreateDefPtyReviewFilingInterface {
       User filingUser = User.get(cRule_._username);
       DirPerson filingDirPerson = filingUser?.dirPerson;
       DirAttribute filingPassword = filingDirPerson?.collect("attributes[attributeType == 'EFSPPASS' && effectiveTo == null]")?.find({it -> it.value != null && !it.value.isEmpty()});
+      
+      DirPerson defaultFiler = DomainObject.find(DirPerson.class, "firstName", "District", "lastName", "Attorney").find({it -> it != null});
+      DirAttribute defaultPassword = defaultFiler.collect("attributes[attributeType == 'EFSPPASS' && value != null]").find({it -> it != null && it.value != null});
+      logger("TEST:387:filingDirPerson: ${filingDirPerson?.firstName} ${filingDirPerson?.lastName} ${filingPassword?.value}");
+      logger("TEST:387:DefaultFiler: ${defaultFiler?.firstName} ${defaultFiler?.lastName} ${defaultPassword?.value}");
+      
       String filingUserEmail = StringUtil.isNullOrEmpty(filingDirPerson?.email) ? "" : filingDirPerson?.email;
       String filingUserPassword = StringUtil.isNullOrEmpty(filingPassword?.value) ? "" : filingPassword?.value;
 	  String filingUserFirstName = StringUtil.isNullOrEmpty(filingDirPerson?.firstName) ? "" : filingDirPerson?.firstName;
       String filingUserLastName = StringUtil.isNullOrEmpty(filingDirPerson?.lastName) ? "" : filingDirPerson?.lastName;
+      
+      if (StringUtil.isNullOrEmpty(filingDirPerson?.email) || StringUtil.isNullOrEmpty(filingPassword?.value) || StringUtil.isNullOrEmpty(filingDirPerson?.firstName) || StringUtil.isNullOrEmpty(filingDirPerson?.lastName)){
+      filingUserEmail = defaultFiler?.email;
+      filingUserPassword = defaultPassword?.value;
+	  filingUserFirstName = defaultFiler?.firstName;
+      filingUserLastName = defaultFiler?.lastName;
+      }
       
       boolean bRetVal= false;  // guilty until proven innocent
       String tylerCourtLocation = "fresno:cr";
@@ -422,12 +439,25 @@ public class CreateDefPtyReviewFilingInterface {
 
 			// Set tracking parameters for esl service
 	      
-          OtherCaseNumber cOldCaseFilingNFY = cCase.collect("otherCaseNumbers[type=='NYF' && number != null && !number.isEmpty() && ((memo != null && memo.contains(#p1) && memo.contains(#p2)) || (memo == null || memmo.isEmpty())) && subCase == #p3]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString(), cParty_.subCase).orderBy("lastUpdated").last();
+         // OtherCaseNumber cOldCaseFilingNFY = cCase.collect("otherCaseNumbers[type=='NYF' && number != null && !number.isEmpty() && ((memo != null && memo.contains(#p1) && memo.contains(#p2)) || (memo == null || memo.isEmpty())) && subCase == #p3]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString(), cParty_.subCase).orderBy("lastUpdated").last();
+          logger("TEST:426:partyTitle:${cParty_.title}: partySubCaseTitle:${cParty_.subCase.title}");
+          OtherCaseNumber cOldCaseFilingNFY = cCase.collect("otherCaseNumbers[endDate == null && type=='NYF' && number != null && !number.isEmpty() && subCase == #p1]", cParty_.subCase).orderBy("lastUpdated").last();
+          logger("TEST:NYF1:${cOldCaseFilingNFY}");
+          cOldCaseFilingNFY = cOldCaseFilingNFY == null ? cCase.collect("otherCaseNumbers[endDate == null && type=='NYF' && number != null && !number.isEmpty() && ((memo != null && memo.contains(#p1) && memo.contains(#p2)))]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last() : cOldCaseFilingNFY;
+          logger("TEST:NYF2:${cOldCaseFilingNFY}");
+          if (cParty_.lastName.contains(" ")){
+          cOldCaseFilingNFY = cOldCaseFilingNFY == null ? cCase.collect("otherCaseNumbers[endDate == null && type=='NYF' && number != null && !number.isEmpty() && ((memo != null && memo.contains(#p1) && memo.contains(#p2)))]", "${cParty_.firstName}".toString(),  "${cParty_.lastName.substring(0, cParty_.lastName.indexOf(" "))}".toString()).orderBy("lastUpdated").last() : cOldCaseFilingNFY;
+          logger("TEST:NYF3:${cOldCaseFilingNFY}");
+          }
+          OtherCaseNumber cOldCaseFiling = cCase.collect("otherCaseNumbers[endDate == null && type=='CRT' && (updateReason == null || updateReason != 'CRTComment') && number != null && !number.isEmpty() && memo != null && memo.contains(#p1) && (memo.contains(#p2) || memo.contains(#p3))]", cParty_.firstName,  cParty_.lastName, cParty_.lastName?.replaceAll("\\W","")).orderBy("lastUpdated").last();
           
-          OtherCaseNumber cOldCaseFiling = cCase.collect("otherCaseNumbers[type=='CRT' && (updateReason == null || updateReason != 'CRTComment') && number != null && !number.isEmpty() && memo != null && memo.contains(#p1) && memo.contains(#p2)]", "${cParty_.firstName}".toString(),  "${cParty_.lastName}".toString()).orderBy("lastUpdated").last();
+         cOldCaseFiling = cOldCaseFiling == null ? DomainObject.find(OtherCaseNumber.class, "case", cCase, "type", "CRT")?.find({it -> it.endDate == null && StringUtils.containsAny(it.memo, cParty_.lastName?.replaceAll("\\W","")) && StringUtils.containsAny(it.memo, cParty_.firstName?.replaceAll("\\W","")) && it.number != null}) : cOldCaseFiling;
+          
+         cOldCaseFiling = cOldCaseFiling == null ? cCase.collect("otherCaseNumbers[endDate == null && type=='CRT' && number != null && !number.isEmpty() && subCase == #p1]", cParty_.subCase).orderBy("lastUpdated").last() : cOldCaseFiling;
           
           logger("405:cOldCaseFiling:${cOldCaseFiling}; ${cOldCaseFiling?.number}; cParty_.firstName:${cParty_.firstName}; cParty_.lastName:${cParty_.lastName}; memo: ${cOldCaseFiling?.memo}");
           
+           /*         
           OtherCaseNumber cOldCaseFilingForUnmatchedParty = cCase.collect("otherCaseNumbers[type=='CRT' && (updateReason == null || updateReason != 'CRTComment') && number != null && !number.isEmpty() && memo != null && !memo.isEmpty()]").orderBy("lastUpdated").last();
           
           logger("408:cOldCaseFilingForUnmatchedParty:${cOldCaseFilingForUnmatchedParty}; ${cOldCaseFilingForUnmatchedParty?.number}");
@@ -446,8 +476,12 @@ public class CreateDefPtyReviewFilingInterface {
             cOldCaseFiling = cOldCaseFilingForUnmatchedParty;
           }
           
-          logger("condition ${cOldCaseFilingNFY != null && cOldCaseFiling == null}")
+          if (cOldCaseFiling == null && cOldCaseFilingForUnmatchedParty != null && cOldCaseFilingForUnmatchedParty.number != null){
+            cOldCaseFiling = cOldCaseFilingForUnmatchedParty;
+          }
           
+          logger("condition ${cOldCaseFilingNFY != null && cOldCaseFiling == null}")
+          */
           if (cOldCaseFilingNFY != null && cOldCaseFiling == null){
             cOldCaseFiling = cOldCaseFilingNFY;
           }
@@ -700,7 +734,7 @@ public class CreateDefPtyReviewFilingInterface {
 			// Add person primary language. If languageCode attribute is not found, trigger an assignment error and don't post PrimaryLanguage section
 			logger("Primary langauge - ${xmlStrUtil(cProfile?.primaryLanguage)}");
 			String sLangCode = getLookupListCodeAttribute("LANGUAGE", cProfile?.primaryLanguage, OFS_ATTRIBUTE_TYPE_, tylerCourtLocation, tylerCaseCategory, "filingCode", "US");
-			if (!StringUtil.isNullOrEmpty(sLangCode) ) { // valid attribute code?
+			/*if (!StringUtil.isNullOrEmpty(sLangCode) ) { // valid attribute code?
 				if( sLangCode?.toLowerCase() != 'eng' ) {
 					OFS_CaseXml.append('<nc:PersonPrimaryLanguage>');
 					OFS_CaseXml.append("<nc:LanguageCode>${xmlStrUtil(sLangCode?.toLowerCase())}</nc:LanguageCode>");
@@ -709,7 +743,7 @@ public class CreateDefPtyReviewFilingInterface {
 			} else {
 				if (!StringUtil.isNullOrEmpty(cProfile?.primaryLanguage)) // only post warning if primaryLanguage w/o an associated attribute code
 					this.aErrorList_.add(new ValidationError(false, cCase.caseNumber, logger("No [${OFS_ATTRIBUTE_TYPE_}] attribute code found for languageCode(${cProfile?.primaryLanguage}) in [LANGUAGE] lookupList")));
-			}
+			}*/
 
 			// Add person profile information
 			logger("Race(${xmlStrUtil(cProfile?.race)}) / Gender(${xmlStrUtil(cProfile?.gender)}) / Weight(${xmlStrUtil(cProfile?.weight?.toString())})");
@@ -760,7 +794,15 @@ public class CreateDefPtyReviewFilingInterface {
 				OFS_CaseXml.append("<nc:AddressSecondaryUnitText>${xmlStrUtil(cAdr?.address2)}</nc:AddressSecondaryUnitText>");
 				OFS_CaseXml.append("<nc:LocationCityName>${xmlStrUtil(cAdr?.city)}</nc:LocationCityName>");
 				OFS_CaseXml.append("<nc:LocationStateName>${xmlStrUtil(cAdr?.state)}</nc:LocationStateName>");
-				OFS_CaseXml.append("<nc:LocationCountryFIPS10-4Code>${xmlStrUtil(getLookupListCodeAttribute("ADDRESS_COUNTRY", cAdr?.country, OFS_ATTRIBUTE_TYPE_, tylerCourtLocation, tylerCaseCategory, "filingCode", "US"))}</nc:LocationCountryFIPS10-4Code>");
+              
+              String defaultFilingContryCode = xmlStrUtil(getLookupListCodeAttribute("ADDRESS_COUNTRY", cAdr?.country, OFS_ATTRIBUTE_TYPE_, tylerCourtLocation, tylerCaseCategory, "filingCode", "US"));
+              
+                defaultFilingContryCode = StringUtil.isNullOrEmpty(defaultFilingContryCode) ? "US" : defaultFilingContryCode;
+              
+				//OFS_CaseXml.append("<nc:LocationCountryFIPS10-4Code>${xmlStrUtil(getLookupListCodeAttribute("ADDRESS_COUNTRY", cAdr?.country, OFS_ATTRIBUTE_TYPE_, tylerCourtLocation, tylerCaseCategory, "filingCode", "US"))}</nc:LocationCountryFIPS10-4Code>");
+              
+              OFS_CaseXml.append("<nc:LocationCountryFIPS10-4Code>${defaultFilingContryCode}</nc:LocationCountryFIPS10-4Code>");
+              
 				OFS_CaseXml.append("<nc:LocationPostalCode>${xmlStrUtil(cAdr?.zip)}</nc:LocationPostalCode>");
 				OFS_CaseXml.append('</nc:StructuredAddress>');
 				OFS_CaseXml.append('</nc:ContactMailingAddress>');
@@ -1097,7 +1139,7 @@ String leadDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERFACE_OF
                 }
 
 				logger("Attaching connected document - docName(${xmlStrUtil(cDoc.docDef.name)}), docNbr(${xmlStrUtil(cDoc.docDef.number)})");
-				OFS_CaseXml.append("<tyler:FilingConnectedDocument s:id=\"${xmlStrUtil(cDoc?.docDef?.number, "ConnectedFiling${iConnectedFilingID++}")?.replaceAll(" ", "")}\">");
+				OFS_CaseXml.append("<tyler:FilingConnectedDocument s:id=\"${xmlStrUtil(cDoc?.docDef?.number, "ConnectedFiling${iConnectedFilingID++}")?.replaceAll(" ", "")}${cDoc?.id}\">");
                 //OFS_CaseXml.append("<tyler:FilingLeadDocument s:id=\"${xmlStrUtil(cDoc?.docDef?.number, "Filing${iConnectedFilingID++}")?.replaceAll(" ", "")}\">");
 				//OFS_CaseXml.append("<nc:DocumentDescriptionText>${xmlStrUtil(cDoc?.docDef?.name)}</nc:DocumentDescriptionText>");
               String connectingDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERFACE_OFS_UPDATE_FILING_CODES_LOCAL_XML", null, ["lookuplist": "PARTY_SUBMIT_TYPE", "casecategory": "8", "name": cDoc.docDef.number4, "filingcodeid": ""] ).getValue("code");
@@ -1182,7 +1224,7 @@ String leadDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERFACE_OF
           CaseAssignment filingAttorney = cCase.collect("assignments[assignmentRole == 'REV' && status == 'CUR']").find({it -> it.person != null && it.person.lastName != null});
           //filingAttorney = filingAttorney == null ? cCase.collect("assignments[assignmentRole == 'REV' && status == 'CUR']").find({it -> it.person != null && it.person.lastName != null}) : filingAttorney;
           filingAttorney = filingAttorney != null && filingAttorney.person != null && filingAttorney.person.lastName != null && !filingAttorney.person.collect("identifications[identificationType == 'BAR' && identificationNumber != null]").isEmpty() ? filingAttorney : null;
-          String attyBarNumber = filingAttorney != null ? filingAttorney.person.collect("identifications[identificationType == 'BAR']").first()?.identificationNumber : "236992";
+          String attyBarNumber = filingAttorney != null ? filingAttorney.person.collect("identifications[identificationType == 'BAR']").first()?.identificationNumber : "";
           String attyLastName = filingAttorney != null ? filingAttorney.person.lastName : "";
           String attyFirstName = filingAttorney != null ? filingAttorney.person.firstName : "";
           String attyMiddleName = filingAttorney != null && filingAttorney?.person?.middleName != null ? filingAttorney.person.middleName : "";
@@ -1199,13 +1241,20 @@ String leadDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERFACE_OF
           OFS_CaseXml.append( "<FilerPassword>${filingUserPassword}</FilerPassword>" );
           
           if (otherCaseNumberMemo != null && !otherCaseNumberMemo.isEmpty()){
+            logger("TEST:CaseTitle:1225<CaseTitle>");
             OFS_CaseXml.append( "<CaseInitialFilingID>${otherCaseNumberMemo.substring(0, otherCaseNumberMemo.indexOf(" ")).trim()}</CaseInitialFilingID>" );
-            OFS_CaseXml.append( "<CaseTitle>${otherCaseNumberMemo.substring(otherCaseNumberMemo.indexOf(" ")).trim()}</CaseTitle>" );
+            OFS_CaseXml.append( "<CaseTitle>${otherCaseNumberMemo.trim()}</CaseTitle>" );
           } else {
+            logger("TEST:CaseTitle:1229<CaseTitle>");
             OFS_CaseXml.append( "<CaseInitialFilingID></CaseInitialFilingID>" );
-            String filingCaseTitle = cOldCaseFiling?.number != null && cOldCaseFiling?.number.startsWith("NYF") ? "NYF ${cParty_.fml}": "${cParty_.fml}";
-            OFS_CaseXml.append( "<CaseTitle>The People of the State of California vs. ${filingCaseTitle}</CaseTitle>" );
+            OFS_CaseXml.append( "<CaseTitle></CaseTitle>" );
           }
+          
+          OFS_CaseXml.append( "<DefendantLastName>${cParty_?.person?.lastName?.trim() != null ? cParty_?.person?.lastName?.trim() : ''}</DefendantLastName>" );
+          OFS_CaseXml.append( "<DefendantFirstName>${cParty_?.person?.firstName?.trim() != null ? cParty_?.person?.firstName?.trim() : ''}</DefendantFirstName>" );
+          OFS_CaseXml.append( "<DefendantMiddleName>${cParty_?.person?.middleName?.trim() != null ? cParty_?.person?.middleName?.trim() : ''}</DefendantMiddleName>" );
+          OFS_CaseXml.append( "<DefendantCaseTrackingID>${cParty_?.cf_caseTrackingID?.trim() != null ? cParty_?.cf_caseTrackingID?.trim() : ''}</DefendantCaseTrackingID>" ); //${cParty_?.cf_caseTrackingID?.trim()}
+          
             OFS_CaseXml.append( "<CaseCourtLocation>${xmlStrUtil(eProsCfg_.sCaseCourtLocation_)}</CaseCourtLocation>" );
           if (eProsCfg_.sCaseNumber_ == null){
             OFS_CaseXml.append( "<CaseNumber/>" );
