@@ -396,6 +396,9 @@ public class CreateDefPtyReviewFilingInterface {
 	  String filingUserFirstName = StringUtil.isNullOrEmpty(filingDirPerson?.firstName) ? "" : filingDirPerson?.firstName;
       String filingUserLastName = StringUtil.isNullOrEmpty(filingDirPerson?.lastName) ? "" : filingDirPerson?.lastName;
       
+      String defaultFilingUserEmail = StringUtil.isNullOrEmpty(defaultFiler?.email) ? "" : defaultFiler?.email;
+      String defaultFilingUserPassword = StringUtil.isNullOrEmpty(defaultPassword?.value) ? "" : defaultPassword?.value;
+      
       if (StringUtil.isNullOrEmpty(filingDirPerson?.email) || StringUtil.isNullOrEmpty(filingPassword?.value) || StringUtil.isNullOrEmpty(filingDirPerson?.firstName) || StringUtil.isNullOrEmpty(filingDirPerson?.lastName)){
       filingUserEmail = defaultFiler?.email;
       filingUserPassword = defaultPassword?.value;
@@ -1239,6 +1242,10 @@ String leadDocRegisterAction = com.sustain.rule.model.RuleDef.exec("INTERFACE_OF
           OFS_CaseXml.append( "<FilerLastName>${filingUserLastName}</FilerLastName>" );
           OFS_CaseXml.append( "<FilerEmail>${filingUserEmail}</FilerEmail>" );
           OFS_CaseXml.append( "<FilerPassword>${filingUserPassword}</FilerPassword>" );
+          
+          OFS_CaseXml.append( "<DefaultFilerEmail>${defaultFilingUserEmail}</DefaultFilerEmail>" );
+          OFS_CaseXml.append( "<DefaultFilerPassword>${defaultFilingUserPassword}</DefaultFilerPassword>" );
+          
           
           if (otherCaseNumberMemo != null && !otherCaseNumberMemo.isEmpty()){
             logger("TEST:CaseTitle:1225<CaseTitle>");
